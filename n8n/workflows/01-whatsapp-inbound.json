@@ -1,0 +1,187 @@
+{
+  "name": "PetFlow | 01 - WhatsApp Inbound (AvisaAPI)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Webhook AvisaAPI\n\nConfigure no painel da AvisaAPI:\n**URL do webhook:** `{{$env.WEBHOOK_URL}}/webhook/petflow/whatsapp`\n\nEm desenvolvimento, exponha o n8n com ngrok/cloudflared e use a URL publica.\n\nO no **Extrair mensagem** e tolerante a varios formatos de payload (Evolution/Baileys, generico). Se a AvisaAPI mandar um formato diferente, veja o campo `raw` na execucao e ajuste o mapeamento."
+      },
+      "id": "w1-note",
+      "name": "Nota",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-1200, 100],
+      "width": 420,
+      "height": 300
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "petflow/whatsapp",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "w1-inbound-webhook",
+      "name": "Webhook AvisaAPI",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-1150, 480],
+      "webhookId": "petflow-wa-inbound"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normaliza o payload recebido — tolerante aos formatos mais comuns\n// (Evolution/Baileys, generico {from,message}, etc.)\nconst b = $json.body || {};\n\n// Ignora eventos que nao sao mensagem de texto recebida\nif (b.event && !['messages.upsert', 'message', 'message.received', 'onmessage'].includes(b.event)) {\n  return [{ json: { kind: 'ignored', reason: 'evento: ' + b.event } }];\n}\n\nconst d = b.data || b;\nconst key = d.key || {};\nconst msgObj = (typeof d.message === 'object' && d.message) ? d.message : {};\n\nlet phone = key.remoteJid || d.remoteJid || b.from || b.number || b.phone || '';\nphone = String(phone).replace('@s.whatsapp.net', '').replace('@g.us', '').replace(/\\D/g, '');\n\nconst fromMe = key.fromMe === true || d.fromMe === true;\nconst isGroup = String(key.remoteJid || d.remoteJid || '').includes('@g.us');\n\nconst text = msgObj.conversation\n  || msgObj.extendedTextMessage?.text\n  || d.messageBody\n  || d.body\n  || (typeof d.message === 'string' ? d.message : '')\n  || (typeof b.message === 'string' ? b.message : '')\n  || b.text || '';\n\nconst name = d.pushName || b.pushName || b.name || b.notifyName || '';\n\n// Ignora: mensagens enviadas por nos, grupos, ou payloads sem telefone/texto\nif (fromMe || isGroup || !phone || !text) {\n  return [{ json: { kind: 'ignored', fromMe, isGroup, phone } }];\n}\n\nreturn [{ json: { kind: 'message', phone, name, text } }];"
+      },
+      "id": "w1-extract",
+      "name": "Extrair mensagem",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-930, 480]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "id": "is-message",
+              "leftValue": "={{ $json.kind }}",
+              "rightValue": "message",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "w1-if-text",
+      "name": "E mensagem valida?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-710, 480]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/functions/v1/chat-handler",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.PETFLOW_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "message", "value": "={{ $json.text }}" },
+            { "name": "phone", "value": "={{ $json.phone }}" },
+            { "name": "name", "value": "={{ $json.name }}" },
+            { "name": "sessionId", "value": "={{ $json.phone }}" }
+          ]
+        },
+        "options": { "timeout": 60000 }
+      },
+      "id": "w1-chat-handler",
+      "name": "Chamar chat-handler (IA)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-470, 380],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Garante que sempre exista uma resposta para o cliente\nconst resp = $json.response;\nconst phone = $('Extrair mensagem').item.json.phone;\n\nconst text = (typeof resp === 'string' && resp.trim().length > 0)\n  ? resp\n  : 'Desculpe, tive um problema para processar sua mensagem. Pode tentar novamente? 🐾';\n\nreturn [{ json: { phone, text } }];"
+      },
+      "id": "w1-build-reply",
+      "name": "Montar resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-230, 380]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.avisaapi.com.br/api/actions/sendMessage",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.AVISA_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "number", "value": "={{ $json.phone }}" },
+            { "name": "message", "value": "={{ $json.text }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "w1-send-wa",
+      "name": "Enviar resposta (AvisaAPI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [10, 380]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "phone", "value": "={{ $('Extrair mensagem').item.json.phone }}" },
+            { "name": "direction", "value": "inbound" },
+            { "name": "content", "value": "={{ $('Extrair mensagem').item.json.text }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "w1-log-message",
+      "name": "Log mensagem (Supabase) [opcional]",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-230, 600],
+      "disabled": true,
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Webhook AvisaAPI": {
+      "main": [[{ "node": "Extrair mensagem", "type": "main", "index": 0 }]]
+    },
+    "Extrair mensagem": {
+      "main": [[{ "node": "E mensagem valida?", "type": "main", "index": 0 }]]
+    },
+    "E mensagem valida?": {
+      "main": [
+        [
+          { "node": "Chamar chat-handler (IA)", "type": "main", "index": 0 },
+          { "node": "Log mensagem (Supabase) [opcional]", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Chamar chat-handler (IA)": {
+      "main": [[{ "node": "Montar resposta", "type": "main", "index": 0 }]]
+    },
+    "Montar resposta": {
+      "main": [[{ "node": "Enviar resposta (AvisaAPI)", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1", "timezone": "America/Bahia" },
+  "staticData": null,
+  "tags": [{ "name": "petflow" }, { "name": "whatsapp" }, { "name": "avisaapi" }]
+}
