@@ -1,0 +1,161 @@
+{
+  "name": "PetFlow | 03 - Lembretes automaticos",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "minutes", "minutesInterval": 15 }]
+        }
+      },
+      "id": "w3-schedule",
+      "name": "A cada 15 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-900, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Janela do lembrete: agendamentos que comecam entre 24h00 e 24h15 a partir de agora.\n// Rode a cada 15 min para cobrir a janela inteira sem repetir (reminder_sent evita duplicidade).\nconst now = Date.now();\nconst from = new Date(now + 24 * 3600 * 1000);\nconst to = new Date(from.getTime() + 15 * 60 * 1000);\nreturn [{ json: { from: from.toISOString(), to: to.toISOString() } }];"
+      },
+      "id": "w3-window",
+      "name": "Calcular janela (24h)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-700, 400]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/appointments",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "select", "value": "*" },
+            { "name": "status", "value": "eq.CONFIRMED" },
+            { "name": "reminder_sent", "value": "is.false" },
+            { "name": "start_datetime", "value": "=gte.{{ $json.from }}" },
+            { "name": "start_datetime", "value": "=lt.{{ $json.to }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "w3-fetch",
+      "name": "Buscar agendamentos (Supabase)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-480, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mapeia o registro do banco para a mensagem.\n// AJUSTE os nomes dos campos conforme o schema final da tabela appointments.\nconst a = $json;\nconst start = new Date(a.start_datetime);\nconst pad = (n) => String(n).padStart(2, '0');\nconst date = `${pad(start.getDate())}/${pad(start.getMonth() + 1)}`;\nconst time = `${pad(start.getHours())}:${pad(start.getMinutes())}`;\n\nreturn [{\n  json: {\n    appointment_id: a.id,\n    phone: a.phone || a.customer_phone || '',\n    customer: a.customer_name || '',\n    pet: a.pet_name || 'seu pet',\n    service: a.service_name || 'servico',\n    date,\n    time\n  }\n}];"
+      },
+      "id": "w3-map",
+      "name": "Mapear campos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-260, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const v = $json;\nconst text = `⏰ Lembrete: amanha, ${v.date}, tem ${v.service} para ${v.pet} as ${v.time}! 🐾\\n\\nSe precisar remarcar ou cancelar, me avisa por aqui.`;\nreturn [{ json: { ...v, text } }];"
+      },
+      "id": "w3-template",
+      "name": "Template lembrete",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-40, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.avisaapi.com.br/api/actions/sendMessage",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.AVISA_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "number", "value": "={{ $json.phone }}" },
+            { "name": "message", "value": "={{ $json.text }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "w3-send-wa",
+      "name": "Enviar lembrete (AvisaAPI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [180, 400]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/appointments?id=eq.{{ $json.appointment_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"reminder_sent\": true }",
+        "options": {}
+      },
+      "id": "w3-mark-sent",
+      "name": "Marcar lembrete enviado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 400]
+    },
+    {
+      "parameters": {
+        "content": "## ⚠️ Ajustar ao schema final\n\nEste workflow assume na tabela `appointments`:\n- `status` (CONFIRMED, ...)\n- `reminder_sent` (boolean, default false)\n- `start_datetime` (timestamptz UTC)\n- campos de contato: `phone` / `customer_phone`\n\nAjuste o no **Mapear campos** e a query do no **Buscar agendamentos** quando o DER final estiver pronto.\n\nPara o 2º lembrete (Decisao: ate dois lembretes configuraveis), duplique este fluxo com outra janela (ex.: 2h antes) e um campo `reminder2_sent`."
+      },
+      "id": "w3-note",
+      "name": "Nota",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-920, 620],
+      "width": 380,
+      "height": 320
+    }
+  ],
+  "connections": {
+    "A cada 15 min": {
+      "main": [[{ "node": "Calcular janela (24h)", "type": "main", "index": 0 }]]
+    },
+    "Calcular janela (24h)": {
+      "main": [[{ "node": "Buscar agendamentos (Supabase)", "type": "main", "index": 0 }]]
+    },
+    "Buscar agendamentos (Supabase)": {
+      "main": [[{ "node": "Mapear campos", "type": "main", "index": 0 }]]
+    },
+    "Mapear campos": {
+      "main": [[{ "node": "Template lembrete", "type": "main", "index": 0 }]]
+    },
+    "Template lembrete": {
+      "main": [[{ "node": "Enviar lembrete (AvisaAPI)", "type": "main", "index": 0 }]]
+    },
+    "Enviar lembrete (AvisaAPI)": {
+      "main": [[{ "node": "Marcar lembrete enviado", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1", "timezone": "America/Bahia" },
+  "staticData": null,
+  "tags": [{ "name": "petflow" }, { "name": "lembretes" }]
+}
