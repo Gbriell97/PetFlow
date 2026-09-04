@@ -3,624 +3,1079 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PetFlow — Super Admin</title>
+<title>PetFlow — Painel Super Admin</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root { --bg:#0f172a; --bg2:#1e293b; --bg3:#334155; --text:#f1f5f9; --text2:#94a3b8; --primary:#6366f1; --primary2:#4f46e5; --success:#10b981; --warning:#f59e0b; --error:#ef4444; --border:#334155; }
+  :root { --bg-primary:#0f172a; --bg-secondary:#1e293b; --bg-tertiary:#334155; --text-primary:#f1f5f9; --text-secondary:#94a3b8; --primary:#6366f1; --primary-dark:#4f46e5; --success:#10b981; --warning:#f59e0b; --error:#ef4444; --border:#334155; }
   * { font-family:'Inter',sans-serif; box-sizing:border-box; }
-  body { background:var(--bg); color:var(--text); min-height:100vh; margin:0; }
+  body { background:var(--bg-primary); color:var(--text-primary); min-height:100vh; margin:0; }
   .glass { background:rgba(30,41,59,0.9); backdrop-filter:blur(12px); border:1px solid var(--border); }
-  .btn-primary { background:linear-gradient(135deg,var(--primary),var(--primary2)); color:white; border:none; cursor:pointer; transition:all .2s; }
+  .btn-primary { background:linear-gradient(135deg,var(--primary),var(--primary-dark)); transition:all .2s; border:none; cursor:pointer; }
   .btn-primary:hover { transform:translateY(-1px); box-shadow:0 10px 25px -5px rgba(99,102,241,0.4); }
-  .input-dark { background:var(--bg2); border:1px solid var(--border); color:var(--text); padding:10px 14px; border-radius:8px; width:100%; font-size:14px; }
+  .btn-danger { background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.4); color:var(--error); transition:all .2s; cursor:pointer; }
+  .btn-danger:hover { background:rgba(239,68,68,0.3); }
+  .input-dark { background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary); border-radius:8px; padding:10px 14px; width:100%; font-size:14px; transition:all .2s; }
   .input-dark:focus { border-color:var(--primary); outline:none; box-shadow:0 0 0 3px rgba(99,102,241,0.2); }
-  .card { background:var(--bg2); border:1px solid var(--border); border-radius:12px; transition:all .2s; }
-  .card:hover { border-color:var(--primary); }
-  .tab-btn { padding:10px 16px; border-radius:8px; font-size:13px; font-weight:500; color:var(--text2); background:transparent; border:none; cursor:pointer; transition:all .2s; }
-  .tab-btn.active { background:var(--primary); color:white; }
-  .tab-btn:hover:not(.active) { background:var(--bg3); color:var(--text); }
-  .section { display:none; animation:fadeIn .3s ease; }
-  .section.active { display:block; }
-  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(4px); z-index:100; display:none; align-items:center; justify-content:center; padding:20px; }
-  .modal-overlay.show { display:flex; }
-  .modal-content { background:var(--bg2); border:1px solid var(--border); border-radius:16px; width:100%; max-width:640px; max-height:90vh; overflow-y:auto; }
-  .badge { padding:4px 10px; border-radius:20px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; }
-  .badge-green { background:rgba(16,185,129,0.15); color:var(--success); border:1px solid rgba(16,185,129,0.3); }
-  .badge-yellow { background:rgba(245,158,11,0.15); color:var(--warning); border:1px solid rgba(245,158,11,0.3); }
-  .badge-red { background:rgba(239,68,68,0.15); color:var(--error); border:1px solid rgba(239,68,68,0.3); }
-  .badge-gray { background:rgba(148,163,184,0.15); color:var(--text2); border:1px solid rgba(148,163,184,0.3); }
-  .copy-box { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px 14px; font-family:monospace; font-size:12px; color:var(--text2); position:relative; }
-  .copy-btn { position:absolute; right:6px; top:50%; transform:translateY(-50%); background:var(--bg3); border:none; color:var(--text); padding:4px 10px; border-radius:6px; cursor:pointer; font-size:11px; }
+  select.input-dark { appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; padding-right:36px; }
+  .card { background:var(--bg-secondary); border:1px solid var(--border); border-radius:12px; transition:all .2s; }
+  .card:hover { border-color:var(--primary); transform:translateY(-2px); }
+  .fade-in { animation:fadeIn .4s ease-out; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+  .toast { position:fixed; top:20px; right:20px; padding:14px 20px; border-radius:10px; color:white; font-weight:500; z-index:9999; animation:slideIn .3s ease-out; max-width:400px; word-break:break-word; }
+  @keyframes slideIn { from{transform:translateX(100%);opacity:0} to{transform:translateX(0);opacity:1} }
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(4px); z-index:100; display:flex; align-items:center; justify-content:center; padding:20px; }
+  .modal-content { background:var(--bg-secondary); border:1px solid var(--border); border-radius:16px; width:100%; max-width:720px; max-height:90vh; overflow-y:auto; position:relative; }
+  .copy-field { background:var(--bg-primary); border:1px solid var(--border); border-radius:8px; padding:10px 14px; font-family:monospace; font-size:13px; color:var(--text-secondary); position:relative; word-break:break-all; padding-right:70px; }
+  .copy-btn { position:absolute; right:8px; top:50%; transform:translateY(-50%); background:var(--bg-tertiary); border:none; color:var(--text-primary); padding:4px 10px; border-radius:6px; cursor:pointer; font-size:12px; }
   .copy-btn:hover { background:var(--primary); }
-  .color-preview { width:28px; height:28px; border-radius:6px; border:2px solid var(--border); cursor:pointer; }
-  ::-webkit-scrollbar { width:6px; }
-  ::-webkit-scrollbar-track { background:var(--bg); }
-  ::-webkit-scrollbar-thumb { background:var(--bg3); border-radius:3px; }
+  .badge { padding:4px 10px; border-radius:20px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; display:inline-block; }
+  .badge-active { background:rgba(16,185,129,0.15); color:var(--success); border:1px solid rgba(16,185,129,0.3); }
+  .badge-inactive { background:rgba(239,68,68,0.15); color:var(--error); border:1px solid rgba(239,68,68,0.3); }
+  .badge-warning { background:rgba(245,158,11,0.15); color:var(--warning); border:1px solid rgba(245,158,11,0.3); }
+  .tab-btn { padding:10px 16px; border-radius:8px; font-size:13px; font-weight:500; color:var(--text-secondary); background:transparent; border:none; cursor:pointer; transition:all .2s; white-space:nowrap; }
+  .tab-btn:hover { color:var(--text-primary); background:rgba(99,102,241,0.1); }
+  .tab-btn.active { background:var(--primary); color:white; }
+  .form-label { display:block; font-size:12px; font-weight:500; color:var(--text-secondary); margin-bottom:6px; }
+  .color-picker { width:36px; height:36px; border-radius:8px; border:1px solid var(--border); cursor:pointer; padding:2px; background:var(--bg-primary); }
+  .color-picker input[type="color"] { width:100%; height:100%; border:none; border-radius:6px; cursor:pointer; padding:0; }
+  ::-webkit-scrollbar { width:8px; }
+  ::-webkit-scrollbar-track { background:var(--bg-primary); }
+  ::-webkit-scrollbar-thumb { background:var(--bg-tertiary); border-radius:4px; }
+  .hidden { display:none !important; }
+  .skeleton { background:linear-gradient(90deg,var(--bg-secondary) 25%,var(--bg-tertiary) 50%,var(--bg-secondary) 75%); background-size:200% 100%; animation:skeleton 1.5s infinite; border-radius:6px; }
+  @keyframes skeleton { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 </style>
 </head>
 <body>
 
-<!-- ==================== LOGIN ==================== -->
+<!-- LOGIN -->
 <div id="loginScreen" class="min-h-screen flex items-center justify-center p-4">
-  <div class="w-full max-w-sm">
+  <div class="w-full max-w-md fade-in">
     <div class="text-center mb-8">
-      <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-500/30">
-        <i data-lucide="shield-check" class="w-7 h-7 text-white"></i>
+      <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-500/30">
+        <i data-lucide="shield-check" class="w-8 h-8 text-white"></i>
       </div>
-      <h1 class="text-xl font-bold text-white">PetFlow Super Admin</h1>
-      <p class="text-slate-400 text-sm mt-1">Gerenciamento de unidades</p>
+      <h1 class="text-2xl font-bold text-white mb-1">PetFlow Super Admin</h1>
+      <p class="text-slate-400 text-sm">Gerencie todas as unidades da plataforma</p>
     </div>
-    <div class="glass rounded-2xl p-6 space-y-4">
-      <div>
-        <label class="block text-xs font-medium text-slate-400 mb-1.5">Email</label>
+    <div class="glass rounded-2xl p-8">
+      <div class="mb-5">
+        <label class="form-label">Email</label>
         <input type="email" id="loginEmail" class="input-dark" placeholder="seu@email.com" value="gabriel1997barreto@gmail.com">
       </div>
-      <div>
-        <label class="block text-xs font-medium text-slate-400 mb-1.5">Senha</label>
+      <div class="mb-5">
+        <label class="form-label">Senha</label>
         <input type="password" id="loginPassword" class="input-dark" placeholder="••••••••">
       </div>
-      <div>
-        <label class="block text-xs font-medium text-slate-400 mb-1.5">URL da API</label>
+      <div class="mb-6">
+        <label class="form-label">URL da API</label>
         <input type="text" id="apiUrl" class="input-dark" placeholder="https://...supabase.co/functions/v1" value="https://jnmtwalmfkcxixiwqbjm.supabase.co/functions/v1">
       </div>
-      <button onclick="doLogin()" id="loginBtn" class="btn-primary w-full py-2.5 rounded-lg font-medium text-sm flex items-center justify-center gap-2 mt-2">
-        <i data-lucide="log-in" class="w-4 h-4"></i> Entrar
+      <button onclick="doLogin()" id="loginBtn" class="btn-primary w-full py-3 rounded-lg font-semibold text-white flex items-center justify-center gap-2 text-sm">
+        <i data-lucide="log-in" class="w-4 h-4"></i><span>Entrar</span>
       </button>
     </div>
   </div>
 </div>
 
-<!-- ==================== DASHBOARD ==================== -->
+<!-- DASHBOARD -->
 <div id="dashboardScreen" class="hidden min-h-screen">
-  <!-- Header -->
   <header class="glass sticky top-0 z-50 border-b border-slate-700">
-    <div class="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-      <div class="flex items-center gap-2.5">
-        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-          <i data-lucide="shield-check" class="w-4 h-4 text-white"></i>
-        </div>
-        <span class="font-bold text-sm">PetFlow <span class="text-slate-400 font-normal">Admin</span></span>
-      </div>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <span id="adminName" class="text-xs text-slate-400 hidden sm:block"></span>
-        <button onclick="logout()" class="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-700/50 transition-colors">
-          <i data-lucide="log-out" class="w-4 h-4"></i>
+        <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+          <i data-lucide="shield-check" class="w-5 h-5 text-white"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-white text-sm">PetFlow</h1>
+          <p class="text-[10px] text-slate-400 uppercase tracking-wider">Super Admin</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-4">
+        <span id="adminName" class="text-sm text-slate-300 hidden sm:block"></span>
+        <button onclick="logout()" class="text-slate-400 hover:text-white transition-colors p-2">
+          <i data-lucide="log-out" class="w-5 h-5"></i>
         </button>
       </div>
     </div>
   </header>
 
-  <main class="max-w-6xl mx-auto px-4 py-6">
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <!-- Stats -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-      <div class="card p-4">
-        <p class="text-xs text-slate-400 mb-1">Total Lojas</p>
-        <p id="statTotal" class="text-xl font-bold">0</p>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+      <div class="card p-5">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-slate-400 text-sm">Total de Lojas</span>
+          <i data-lucide="store" class="w-5 h-5 text-indigo-400"></i>
+        </div>
+        <p id="statTotal" class="text-2xl font-bold text-white">0</p>
       </div>
-      <div class="card p-4">
-        <p class="text-xs text-slate-400 mb-1">Ativas</p>
-        <p id="statActive" class="text-xl font-bold text-emerald-400">0</p>
+      <div class="card p-5">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-slate-400 text-sm">Ativas</span>
+          <i data-lucide="check-circle" class="w-5 h-5 text-emerald-400"></i>
+        </div>
+        <p id="statActive" class="text-2xl font-bold text-emerald-400">0</p>
       </div>
-      <div class="card p-4">
-        <p class="text-xs text-slate-400 mb-1">Assinaturas</p>
-        <p id="statSubs" class="text-xl font-bold text-indigo-400">0</p>
-      </div>
-      <div class="card p-4">
-        <p class="text-xs text-slate-400 mb-1">Receita/Mês</p>
-        <p id="statRevenue" class="text-xl font-bold text-amber-400">R$ 0</p>
+      <div class="card p-5">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-slate-400 text-sm">Inativas</span>
+          <i data-lucide="x-circle" class="w-5 h-5 text-rose-400"></i>
+        </div>
+        <p id="statInactive" class="text-2xl font-bold text-rose-400">0</p>
       </div>
     </div>
 
-    <!-- Actions -->
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-sm font-semibold text-white">Unidades</h2>
-      <button onclick="openNewUnitModal()" class="btn-primary px-4 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5">
-        <i data-lucide="plus" class="w-3.5 h-3.5"></i> Nova Loja
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-lg font-semibold text-white">Unidades Cadastradas</h2>
+      <button onclick="openNewUnitModal()" class="btn-primary px-5 py-2.5 rounded-lg font-medium text-white text-sm flex items-center gap-2">
+        <i data-lucide="plus" class="w-4 h-4"></i> Nova Loja
       </button>
     </div>
 
-    <!-- Units Grid -->
-    <div id="unitsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-      <!-- JS preenche -->
+    <div id="unitsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <!-- preenchido via JS -->
     </div>
   </main>
 </div>
 
-<!-- ==================== MANAGE LOJA MODAL ==================== -->
-<div id="manageModal" class="modal-overlay">
-  <div class="modal-content">
-    <!-- Header -->
-    <div class="flex items-center justify-between p-4 border-b border-slate-700">
-      <div>
-        <h3 id="manageTitle" class="font-bold text-white text-sm">Gerenciar Loja</h3>
-        <p id="manageSubtitle" class="text-xs text-slate-400 mt-0.5">Plano: — | Status: —</p>
-      </div>
-      <button onclick="closeManageModal()" class="text-slate-400 hover:text-white p-1"><i data-lucide="x" class="w-5 h-5"></i></button>
+<!-- MODAL: NOVA LOJA -->
+<div id="newUnitModal" class="hidden modal-overlay">
+  <div class="modal-content p-6 fade-in">
+    <div class="flex items-center justify-between mb-6">
+      <h3 class="text-lg font-bold text-white">Nova Loja</h3>
+      <button onclick="closeNewUnitModal()" class="text-slate-400 hover:text-white p-1"><i data-lucide="x" class="w-5 h-5"></i></button>
     </div>
-
-    <!-- Tabs -->
-    <div class="flex gap-1 p-3 border-b border-slate-700 overflow-x-auto">
-      <button class="tab-btn active" onclick="switchTab('tab-edit')" id="tab-btn-edit">Editar Loja</button>
-      <button class="tab-btn" onclick="switchTab('tab-data')" id="tab-btn-data">Dados Cadastrais</button>
-      <button class="tab-btn" onclick="switchTab('tab-users')" id="tab-btn-users">Usuários</button>
-      <button class="tab-btn" onclick="switchTab('tab-sub')" id="tab-btn-sub">Assinatura</button>
-      <button class="tab-btn" onclick="switchTab('tab-history')" id="tab-btn-history">Histórico</button>
-    </div>
-
-    <!-- Tab: Editar Loja -->
-    <div id="tab-edit" class="section active p-4 space-y-4">
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label class="block text-xs text-slate-400 mb-1">Nome da Unidade</label>
-          <input type="text" id="eName" class="input-dark">
-        </div>
-        <div>
-          <label class="block text-xs text-slate-400 mb-1">Telefone</label>
-          <input type="text" id="ePhone" class="input-dark">
-        </div>
-      </div>
-      <div>
-        <label class="block text-xs text-slate-400 mb-1">Descrição</label>
-        <textarea id="eDesc" class="input-dark" rows="2"></textarea>
-      </div>
-      <div class="grid grid-cols-3 gap-3">
-        <div>
-          <label class="block text-xs text-slate-400 mb-1">Cor Primária</label>
-          <div class="flex items-center gap-2">
-            <input type="color" id="ePrimary" class="color-preview" oninput="document.getElementById('ePrimaryHex').value=this.value">
-            <input type="text" id="ePrimaryHex" class="input-dark" style="width:80px" oninput="document.getElementById('ePrimary').value=this.value">
+    <form id="newUnitForm" onsubmit="event.preventDefault(); createUnit();">
+      <div class="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="form-label">Nome da Empresa *</label>
+            <input type="text" id="fCompany" class="input-dark" placeholder="Pet Shop Estrela LTDA" required>
+          </div>
+          <div>
+            <label class="form-label">Nome da Unidade *</label>
+            <input type="text" id="fUnit" class="input-dark" placeholder="Estrela Pet — Rio Vermelho" required>
           </div>
         </div>
-        <div>
-          <label class="block text-xs text-slate-400 mb-1">Cor Secundária</label>
-          <div class="flex items-center gap-2">
-            <input type="color" id="eSecondary" class="color-preview" oninput="document.getElementById('eSecondaryHex').value=this.value">
-            <input type="text" id="eSecondaryHex" class="input-dark" style="width:80px" oninput="document.getElementById('eSecondary').value=this.value">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="form-label">Nome do Dono *</label>
+            <input type="text" id="fOwnerName" class="input-dark" placeholder="Mariana Souza" required>
+          </div>
+          <div>
+            <label class="form-label">Email do Dono *</label>
+            <input type="email" id="fOwnerEmail" class="input-dark" placeholder="dono@estrelapet.com.br" required>
           </div>
         </div>
-        <div>
-          <label class="block text-xs text-slate-400 mb-1">Cor Destaque</label>
-          <div class="flex items-center gap-2">
-            <input type="color" id="eAccent" class="color-preview" oninput="document.getElementById('eAccentHex').value=this.value">
-            <input type="text" id="eAccentHex" class="input-dark" style="width:80px" oninput="document.getElementById('eAccent').value=this.value">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="form-label">Telefone</label>
+            <input type="text" id="fPhone" class="input-dark" placeholder="+5571988888888">
+          </div>
+          <div>
+            <label class="form-label">Cidade</label>
+            <input type="text" id="fCity" class="input-dark" placeholder="Salvador" value="Salvador">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="form-label">Estado</label>
+            <input type="text" id="fState" class="input-dark" placeholder="BA" value="BA">
+          </div>
+          <div>
+            <label class="form-label">Timezone</label>
+            <select id="fTimezone" class="input-dark">
+              <option value="America/Bahia">America/Bahia</option>
+              <option value="America/Sao_Paulo">America/Sao_Paulo</option>
+              <option value="America/Fortaleza">America/Fortaleza</option>
+              <option value="America/Recife">America/Recife</option>
+              <option value="America/Manaus">America/Manaus</option>
+              <option value="America/Cuiaba">America/Cuiaba</option>
+            </select>
           </div>
         </div>
       </div>
-      <div>
-        <label class="block text-xs text-slate-400 mb-1">SEO Título</label>
-        <input type="text" id="eSeoTitle" class="input-dark" placeholder="Título da página no Google">
+      <div class="mt-6 flex gap-3">
+        <button type="button" onclick="closeNewUnitModal()" class="flex-1 py-2.5 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-700 transition-colors text-sm font-medium">Cancelar</button>
+        <button type="submit" id="btnCreate" class="flex-1 btn-primary py-2.5 rounded-lg text-white text-sm font-medium flex items-center justify-center gap-2">
+          <i data-lucide="plus" class="w-4 h-4"></i> Criar Loja
+        </button>
       </div>
-      <div>
-        <label class="block text-xs text-slate-400 mb-1">SEO Descrição</label>
-        <textarea id="eSeoDesc" class="input-dark" rows="2" placeholder="Descrição para motores de busca"></textarea>
-      </div>
-      <div>
-        <label class="block text-xs text-slate-400 mb-1">Mensagem de Boas-vindas</label>
-        <textarea id="eWelcome" class="input-dark" rows="2"></textarea>
-      </div>
-      <div>
-        <label class="block text-xs text-slate-400 mb-1">Texto do Rodapé</label>
-        <textarea id="eFooter" class="input-dark" rows="2"></textarea>
-      </div>
-      <button onclick="saveUnitEdit()" class="btn-primary w-full py-2.5 rounded-lg text-sm font-medium">Salvar Alterações</button>
-    </div>
-
-    <!-- Tab: Dados Cadastrais -->
-    <div id="tab-data" class="section p-4 space-y-4">
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label class="block text-xs text-slate-400 mb-1">Razão Social</label>
-          <input type="text" id="dRazao" class="input-dark">
-        </div>
-        <div>
-          <label class="block text-xs text-slate-400 mb-1">CNPJ/CPF</label>
-          <input type="text" id="dCnpj" class="input-dark" placeholder="00.000.000/0000-00">
-        </div>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label class="block text-xs text-slate-400 mb-1">Email da Empresa</label>
-          <input type="email" id="dEmail" class="input-dark">
-        </div>
-        <div>
-          <label class="block text-xs text-slate-400 mb-1">Website</label>
-          <input type="text" id="dWebsite" class="input-dark" placeholder="https://">
-        </div>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label class="block text-xs text-slate-400 mb-1">Responsável</label>
-          <input type="text" id="dResp" class="input-dark">
-        </div>
-        <div>
-          <label class="block text-xs text-slate-400 mb-1">Tel. Responsável</label>
-          <input type="text" id="dRespPhone" class="input-dark">
-        </div>
-      </div>
-      <div>
-        <label class="block text-xs text-slate-400 mb-1">Endereço</label>
-        <input type="text" id="dAddress" class="input-dark">
-      </div>
-      <div class="grid grid-cols-3 gap-3">
-        <div>
-          <label class="block text-xs text-slate-400 mb-1">Cidade</label>
-          <input type="text" id="dCity" class="input-dark">
-        </div>
-        <div>
-          <label class="block text-xs text-slate-400 mb-1">Estado</label>
-          <input type="text" id="dState" class="input-dark" maxlength="2">
-        </div>
-        <div>
-          <label class="block text-xs text-slate-400 mb-1">CEP</label>
-          <input type="text" id="dCep" class="input-dark" placeholder="00000-000">
-        </div>
-      </div>
-      <button onclick="saveCompanyData()" class="btn-primary w-full py-2.5 rounded-lg text-sm font-medium">Salvar Dados Cadastrais</button>
-    </div>
-
-    <!-- Tab: Usuários -->
-    <div id="tab-users" class="section p-4">
-      <div id="usersList" class="space-y-2">
-        <!-- JS preenche -->
-      </div>
-    </div>
-
-    <!-- Tab: Assinatura -->
-    <div id="tab-sub" class="section p-4 space-y-4">
-      <div class="card p-4 text-center">
-        <p class="text-xs text-slate-400 mb-1">Plano Atual</p>
-        <p id="subPlan" class="text-lg font-bold text-white">—</p>
-        <div id="subStatusBadge" class="badge badge-green inline-block mt-2">Ativa</div>
-      </div>
-      <div class="grid grid-cols-2 gap-3">
-        <div class="card p-3">
-          <p class="text-xs text-slate-400">Início</p>
-          <p id="subStart" class="text-sm font-medium">—</p>
-        </div>
-        <div class="card p-3">
-          <p class="text-xs text-slate-400">Renovação</p>
-          <p id="subRenew" class="text-sm font-medium">—</p>
-        </div>
-        <div class="card p-3">
-          <p class="text-xs text-slate-400">Valor</p>
-          <p id="subAmount" class="text-sm font-medium">—</p>
-        </div>
-        <div class="card p-3">
-          <p class="text-xs text-slate-400">Dias Restantes</p>
-          <p id="subDays" class="text-sm font-medium">—</p>
-        </div>
-      </div>
-      <div class="card p-3 bg-amber-500/5 border-amber-500/20">
-        <p class="text-xs text-amber-300 flex items-center gap-2">
-          <i data-lucide="clock" class="w-3.5 h-3.5"></i>
-          <span id="subTimer">Calculando...</span>
-        </p>
-      </div>
-    </div>
-
-    <!-- Tab: Histórico -->
-    <div id="tab-history" class="section p-4">
-      <div id="historyList" class="space-y-2 max-h-64 overflow-y-auto">
-        <!-- JS preenche -->
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ==================== NOVA LOJA MODAL ==================== -->
-<div id="newUnitModal" class="modal-overlay">
-  <div class="modal-content" style="max-width:480px">
-    <div class="flex items-center justify-between p-4 border-b border-slate-700">
-      <h3 class="font-bold text-white text-sm">Nova Loja</h3>
-      <button onclick="closeNewUnitModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
-    </div>
-    <form onsubmit="event.preventDefault(); createUnit();" class="p-4 space-y-3">
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block text-xs text-slate-400 mb-1">Empresa *</label>
-          <input type="text" id="nCompany" class="input-dark" placeholder="Pet Shop Estrela LTDA" required>
-        </div>
-        <div>
-          <label class="block text-xs text-slate-400 mb-1">Unidade *</label>
-          <input type="text" id="nUnit" class="input-dark" placeholder="Estrela Pet" required>
-        </div>
-      </div>
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block text-xs text-slate-400 mb-1">Dono *</label>
-          <input type="text" id="nOwnerName" class="input-dark" placeholder="Mariana Souza" required>
-        </div>
-        <div>
-          <label class="block text-xs text-slate-400 mb-1">Email *</label>
-          <input type="email" id="nOwnerEmail" class="input-dark" placeholder="dono@pet.com" required>
-        </div>
-      </div>
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block text-xs text-slate-400 mb-1">Telefone</label>
-          <input type="text" id="nPhone" class="input-dark" placeholder="+5571988888888">
-        </div>
-        <div>
-          <label class="block text-xs text-slate-400 mb-1">Cidade</label>
-          <input type="text" id="nCity" class="input-dark" value="Salvador">
-        </div>
-      </div>
-      <button type="submit" id="nBtn" class="btn-primary w-full py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2">
-        <i data-lucide="plus" class="w-4 h-4"></i> Criar Loja
-      </button>
     </form>
   </div>
 </div>
 
-<!-- ==================== CREDENTIALS MODAL ==================== -->
-<div id="credModal" class="modal-overlay">
-  <div class="modal-content" style="max-width:420px">
-    <div class="p-5 text-center">
-      <div class="w-12 h-12 rounded-full bg-emerald-500/15 flex items-center justify-center mx-auto mb-3">
-        <i data-lucide="check-circle" class="w-6 h-6 text-emerald-400"></i>
+<!-- MODAL: CREDENCIAIS -->
+<div id="credentialsModal" class="hidden modal-overlay">
+  <div class="modal-content p-6 fade-in">
+    <div class="text-center mb-6">
+      <div class="w-14 h-14 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-3">
+        <i data-lucide="check-circle" class="w-7 h-7 text-emerald-400"></i>
       </div>
-      <h3 class="font-bold text-white">Loja Criada!</h3>
-      <p class="text-xs text-slate-400 mt-1">Copie os dados e envie para o dono</p>
+      <h3 class="text-lg font-bold text-white">Loja Criada com Sucesso!</h3>
+      <p class="text-sm text-slate-400 mt-1">Copie os dados abaixo e envie para o dono da loja</p>
     </div>
-    <div class="px-5 pb-5 space-y-3">
+    <div class="space-y-3 mb-6">
       <div>
-        <label class="block text-xs text-slate-400 mb-1">API Key (n8n/WhatsApp)</label>
-        <div class="copy-box"><span id="cApiKey"></span><button class="copy-btn" onclick="copyText(document.getElementById('cApiKey').textContent)">Copiar</button></div>
+        <label class="form-label">Nome da Unidade</label>
+        <div id="credUnitName" class="text-white font-medium text-sm"></div>
       </div>
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Login</label>
-        <div class="copy-box"><span id="cEmail"></span><button class="copy-btn" onclick="copyText(document.getElementById('cEmail').textContent)">Copiar</button></div>
+        <label class="form-label">API Key (para n8n / WhatsApp)</label>
+        <div class="copy-field"><span id="credApiKey"></span><button class="copy-btn" onclick="copyToClipboard('credApiKey')">Copiar</button></div>
       </div>
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Senha Temporária</label>
-        <div class="copy-box"><span id="cPass"></span><button class="copy-btn" onclick="copyText(document.getElementById('cPass').textContent)">Copiar</button></div>
+        <label class="form-label">Login do Dono</label>
+        <div class="copy-field"><span id="credEmail"></span><button class="copy-btn" onclick="copyToClipboard('credEmail')">Copiar</button></div>
       </div>
-      <button onclick="closeCredModal()" class="btn-primary w-full py-2.5 rounded-lg text-sm font-medium mt-2">Fechar</button>
+      <div>
+        <label class="form-label">Senha Temporária</label>
+        <div class="copy-field"><span id="credPassword"></span><button class="copy-btn" onclick="copyToClipboard('credPassword')">Copiar</button></div>
+      </div>
+    </div>
+    <div class="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 mb-6">
+      <p class="text-xs text-amber-300 flex items-start gap-2">
+        <i data-lucide="alert-triangle" class="w-4 h-4 shrink-0 mt-0.5"></i>
+        <span>Peça para o dono trocar a senha no primeiro acesso ao painel.</span>
+      </p>
+    </div>
+    <button onclick="closeCredentialsModal()" class="w-full btn-primary py-2.5 rounded-lg text-white text-sm font-medium">Fechar e voltar ao Dashboard</button>
+  </div>
+</div>
+
+<!-- MODAL: GERENCIAR LOJA -->
+<div id="manageModal" class="hidden modal-overlay">
+  <div class="modal-content fade-in" style="max-width:800px;">
+    <!-- Header -->
+    <div class="sticky top-0 z-10 bg-[#1e293b] border-b border-slate-700 p-5 rounded-t-2xl">
+      <div class="flex items-start justify-between">
+        <div>
+          <h3 class="text-lg font-bold text-white" id="modalUnitName">Nome da Loja</h3>
+          <p class="text-sm text-slate-400 mt-0.5" id="modalUnitPlan">Plano: — | Status: —</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="confirmDeleteUnit()" class="btn-danger px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Excluir
+          </button>
+          <button onclick="closeManageModal()" class="text-slate-400 hover:text-white p-1.5"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+      </div>
+      <!-- Tabs -->
+      <div class="flex gap-1 mt-4 overflow-x-auto pb-1" id="manageTabs">
+        <button class="tab-btn active" data-tab="editar" onclick="switchTab('editar')">Editar Loja</button>
+        <button class="tab-btn" data-tab="cadastrais" onclick="switchTab('cadastrais')">Dados Cadastrais</button>
+        <button class="tab-btn" data-tab="usuarios" onclick="switchTab('usuarios')">Usuários</button>
+        <button class="tab-btn" data-tab="assinatura" onclick="switchTab('assinatura')">Assinatura</button>
+        <button class="tab-btn" data-tab="historico" onclick="switchTab('historico')">Histórico</button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="p-5">
+      <!-- ABA: EDITAR LOJA -->
+      <div id="tab-editar" class="tab-content">
+        <form id="editUnitForm" onsubmit="event.preventDefault(); saveUnitChanges();">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="form-label">Nome da Unidade</label>
+              <input type="text" id="eName" class="input-dark">
+            </div>
+            <div>
+              <label class="form-label">Telefone</label>
+              <input type="text" id="ePhone" class="input-dark">
+            </div>
+          </div>
+          <div class="mb-4">
+            <label class="form-label">Descrição da Loja</label>
+            <textarea id="eDescription" class="input-dark" rows="3" placeholder="Descrição que aparece no painel da loja..."></textarea>
+          </div>
+          <div class="grid grid-cols-3 gap-4 mb-4">
+            <div>
+              <label class="form-label">Cor Primária</label>
+              <div class="flex items-center gap-2">
+                <div class="color-picker"><input type="color" id="ePrimaryColor" onchange="document.getElementById('ePrimaryColorHex').value=this.value"></div>
+                <input type="text" id="ePrimaryColorHex" class="input-dark" style="width:80px;padding:8px;font-family:monospace;font-size:12px;" maxlength="7" onchange="document.getElementById('ePrimaryColor').value=this.value">
+              </div>
+            </div>
+            <div>
+              <label class="form-label">Cor Secundária</label>
+              <div class="flex items-center gap-2">
+                <div class="color-picker"><input type="color" id="eSecondaryColor" onchange="document.getElementById('eSecondaryColorHex').value=this.value"></div>
+                <input type="text" id="eSecondaryColorHex" class="input-dark" style="width:80px;padding:8px;font-family:monospace;font-size:12px;" maxlength="7" onchange="document.getElementById('eSecondaryColor').value=this.value">
+              </div>
+            </div>
+            <div>
+              <label class="form-label">Cor Destaque</label>
+              <div class="flex items-center gap-2">
+                <div class="color-picker"><input type="color" id="eAccentColor" onchange="document.getElementById('eAccentColorHex').value=this.value"></div>
+                <input type="text" id="eAccentColorHex" class="input-dark" style="width:80px;padding:8px;font-family:monospace;font-size:12px;" maxlength="7" onchange="document.getElementById('eAccentColor').value=this.value">
+              </div>
+            </div>
+          </div>
+          <div class="mb-4">
+            <label class="form-label">SEO Título</label>
+            <input type="text" id="eSeoTitle" class="input-dark" placeholder="Título da página no Google">
+          </div>
+          <div class="mb-4">
+            <label class="form-label">SEO Descrição</label>
+            <textarea id="eSeoDescription" class="input-dark" rows="2" placeholder="Descrição para motores de busca..."></textarea>
+          </div>
+          <div class="mb-4">
+            <label class="form-label">Mensagem de Boas-vindas</label>
+            <textarea id="eWelcome" class="input-dark" rows="2" placeholder="Mensagem exibida no painel da loja..."></textarea>
+          </div>
+          <div class="mb-4">
+            <label class="form-label">Texto do Rodapé</label>
+            <textarea id="eFooter" class="input-dark" rows="2" placeholder="Texto do rodapé..."></textarea>
+          </div>
+          <button type="submit" id="btnSaveUnit" class="btn-primary w-full py-2.5 rounded-lg text-white text-sm font-medium flex items-center justify-center gap-2">
+            <i data-lucide="save" class="w-4 h-4"></i> Salvar Alterações
+          </button>
+        </form>
+      </div>
+
+      <!-- ABA: DADOS CADASTRAIS -->
+      <div id="tab-cadastrais" class="tab-content hidden">
+        <form id="editCompanyForm" onsubmit="event.preventDefault(); saveCompanyChanges();">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="form-label">Razão Social</label>
+              <input type="text" id="cRazao" class="input-dark" placeholder="Pet Shop Estrela LTDA">
+            </div>
+            <div>
+              <label class="form-label">Nome Fantasia</label>
+              <input type="text" id="cFantasia" class="input-dark" placeholder="Estrela Pet">
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="form-label">CNPJ / CPF</label>
+              <input type="text" id="cCnpj" class="input-dark" placeholder="00.000.000/0000-00 ou 000.000.000-00">
+            </div>
+            <div>
+              <label class="form-label">Email da Empresa</label>
+              <input type="email" id="cEmail" class="input-dark" placeholder="contato@estrelapet.com.br">
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="form-label">Website</label>
+              <input type="text" id="cWebsite" class="input-dark" placeholder="https://estrelapet.com.br">
+            </div>
+            <div>
+              <label class="form-label">Responsável</label>
+              <input type="text" id="cResponsible" class="input-dark" placeholder="Nome do responsável legal">
+            </div>
+          </div>
+          <div class="mb-4">
+            <label class="form-label">Telefone do Responsável</label>
+            <input type="text" id="cRespPhone" class="input-dark" placeholder="+5571988888888">
+          </div>
+          <div class="mb-4">
+            <label class="form-label">Redes Sociais (JSON)</label>
+            <textarea id="cSocial" class="input-dark" rows="2" placeholder='{"instagram":"@estrelapet","facebook":"/estrelapet"}'></textarea>
+          </div>
+          <button type="submit" id="btnSaveCompany" class="btn-primary w-full py-2.5 rounded-lg text-white text-sm font-medium flex items-center justify-center gap-2">
+            <i data-lucide="save" class="w-4 h-4"></i> Salvar Dados Cadastrais
+          </button>
+        </form>
+      </div>
+
+      <!-- ABA: USUÁRIOS -->
+      <div id="tab-usuarios" class="tab-content hidden">
+        <div id="usersList" class="space-y-3">
+          <p class="text-slate-500 text-sm text-center py-8">Carregando usuários...</p>
+        </div>
+      </div>
+
+      <!-- ABA: ASSINATURA -->
+      <div id="tab-assinatura" class="tab-content hidden">
+        <div id="subscriptionContent">
+          <div class="text-center py-8">
+            <div class="w-12 h-12 rounded-full bg-indigo-500/20 flex items-center justify-center mx-auto mb-3">
+              <i data-lucide="credit-card" class="w-6 h-6 text-indigo-400"></i>
+            </div>
+            <p class="text-slate-400 text-sm">Carregando dados da assinatura...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA: HISTÓRICO -->
+      <div id="tab-historico" class="tab-content hidden">
+        <div id="historyList" class="space-y-3">
+          <p class="text-slate-500 text-sm text-center py-8">Carregando histórico...</p>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- Toast -->
-<div id="toast" class="fixed top-4 right-4 px-4 py-3 rounded-lg text-white text-sm font-medium z-[9999] transition-all duration-300 opacity-0 translate-x-full"></div>
-
 <script>
-// ==================== STATE ====================
-let S = {
-  token: localStorage.getItem('pf_admin_token')||null,
-  user: JSON.parse(localStorage.getItem('pf_admin_user')||'null'),
-  apiUrl: localStorage.getItem('pf_api_url')||'https://jnmtwalmfkcxixiwqbjm.supabase.co/functions/v1',
+// ===================== STATE =====================
+let state = {
+  token: localStorage.getItem('pf_admin_token') || null,
+  user: JSON.parse(localStorage.getItem('pf_admin_user') || 'null'),
+  apiUrl: localStorage.getItem('pf_api_url') || 'https://jnmtwalmfkcxixiwqbjm.supabase.co/functions/v1',
   units: [],
   currentUnit: null,
   currentCompany: null,
-  currentSub: null
+  currentSubscription: null,
+  currentUsers: [],
+  currentHistory: []
 };
 
-// ==================== INIT ====================
-document.addEventListener('DOMContentLoaded',()=>{
+// ===================== INIT =====================
+document.addEventListener('DOMContentLoaded', () => {
   lucide.createIcons();
-  if(S.token&&S.user?.is_super_admin){showDashboard();loadUnits();}
-  else showLogin();
+  if (state.token && state.user?.is_super_admin) {
+    showDashboard();
+    loadUnits();
+  } else {
+    showLogin();
+  }
 });
 
-// ==================== AUTH ====================
-async function doLogin(){
-  const email=document.getElementById('loginEmail').value.trim();
-  const password=document.getElementById('loginPassword').value;
-  const url=document.getElementById('apiUrl').value.trim();
-  const btn=document.getElementById('loginBtn');
-  if(!email||!password){toast('Preencha email e senha','error');return;}
-  btn.disabled=true; btn.innerHTML='<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>';
-  try{
-    const res=await fetch(`${url}/auth-login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
-    const data=await res.json();
-    if(!data.success){toast(data.error||'Erro','error');btn.disabled=false;btn.innerHTML='<i data-lucide="log-in" class="w-4 h-4"></i> Entrar';lucide.createIcons();return;}
-    S.token=data.data.access_token; S.user=data.data.user; S.apiUrl=url;
-    localStorage.setItem('pf_admin_token',S.token); localStorage.setItem('pf_admin_user',JSON.stringify(S.user)); localStorage.setItem('pf_api_url',S.apiUrl);
-    toast(`Bem-vindo, ${S.user.name||S.user.email}!`,'success'); showDashboard(); loadUnits();
-  }catch(e){toast('Erro de conexão','error');btn.disabled=false;btn.innerHTML='<i data-lucide="log-in" class="w-4 h-4"></i> Entrar';lucide.createIcons();}
-}
-function logout(){localStorage.clear();S={token:null,user:null,apiUrl:S.apiUrl,units:[]};showLogin();toast('Desconectado','info');}
-function showLogin(){document.getElementById('loginScreen').classList.remove('hidden');document.getElementById('dashboardScreen').classList.add('hidden');}
-function showDashboard(){document.getElementById('loginScreen').classList.add('hidden');document.getElementById('dashboardScreen').classList.remove('hidden');document.getElementById('adminName').textContent=S.user?.name||S.user?.email;}
+// ===================== AUTH =====================
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const url = document.getElementById('apiUrl').value.trim();
+  const btn = document.getElementById('loginBtn');
 
-// ==================== UNITS ====================
-async function loadUnits(){
-  if(!S.user?.units)return;
-  S.units=S.user.units;
-  renderUnits(); updateStats();
-}
-function updateStats(){
-  document.getElementById('statTotal').textContent=S.units.length;
-  document.getElementById('statActive').textContent=S.units.filter(u=>u.status==='ACTIVE').length;
-  document.getElementById('statSubs').textContent=S.units.length;
-  const rev=S.units.reduce((a,u)=>a+(u.subscription?.amount||197),0);
-  document.getElementById('statRevenue').textContent=`R$ ${rev.toLocaleString('pt-BR')}`;
-}
-function renderUnits(){
-  const grid=document.getElementById('unitsGrid');
-  if(!S.units.length){grid.innerHTML='<div class="col-span-full text-center py-12 text-slate-500 text-sm">Nenhuma loja cadastrada</div>';return;}
-  grid.innerHTML=S.units.map(u=>`
-    <div class="card p-4 cursor-pointer" onclick="openManageModal('${u.id}')">
-      <div class="flex items-start justify-between mb-2">
-        <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-          <i data-lucide="store" class="w-4 h-4 text-white"></i>
-        </div>
-        <span class="badge ${u.status==='ACTIVE'?'badge-green':u.status==='SUSPENDED'?'badge-red':'badge-gray'}">${u.status==='ACTIVE'?'Ativa':u.status==='SUSPENDED'?'Suspensa':'Inativa'}</span>
-      </div>
-      <h3 class="font-semibold text-white text-sm">${u.name}</h3>
-      <p class="text-xs text-slate-400">${u.city||''}${u.state?`, ${u.state}`:''}</p>
-      <div class="mt-3 pt-3 border-t border-slate-700/50 flex items-center justify-between">
-        <span class="text-[10px] text-slate-500 font-mono truncate max-w-[120px]" title="${u.api_key}">${u.api_key}</span>
-        <span class="text-[10px] text-indigo-400 flex items-center gap-1"><i data-lucide="external-link" class="w-3 h-3"></i> Gerenciar</span>
-      </div>
-    </div>
-  `).join('');
-  lucide.createIcons();
-}
+  if (!email || !password) { toast('Preencha email e senha', 'error'); return; }
 
-// ==================== MANAGE MODAL ====================
-async function openManageModal(unitId){
-  S.currentUnit=S.units.find(u=>u.id===unitId); if(!S.currentUnit)return;
-  document.getElementById('manageTitle').textContent=S.currentUnit.name;
-  document.getElementById('manageSubtitle').textContent=`Plano: Profissional | Status: ${S.currentUnit.status}`;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="animate-spin inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full"></span> Entrando...';
 
-  // Preencher campos
-  document.getElementById('eName').value=S.currentUnit.name||'';
-  document.getElementById('ePhone').value=S.currentUnit.phone||'';
-  document.getElementById('eDesc').value=S.currentUnit.description||'';
-  document.getElementById('ePrimary').value=S.currentUnit.primary_color||'#6366f1'; document.getElementById('ePrimaryHex').value=S.currentUnit.primary_color||'#6366f1';
-  document.getElementById('eSecondary').value=S.currentUnit.secondary_color||'#8b5cf6'; document.getElementById('eSecondaryHex').value=S.currentUnit.secondary_color||'#8b5cf6';
-  document.getElementById('eAccent').value=S.currentUnit.accent_color||'#10b981'; document.getElementById('eAccentHex').value=S.currentUnit.accent_color||'#10b981';
-  document.getElementById('eSeoTitle').value=S.currentUnit.seo_title||'';
-  document.getElementById('eSeoDesc').value=S.currentUnit.seo_description||'';
-  document.getElementById('eWelcome').value=S.currentUnit.welcome_message||'';
-  document.getElementById('eFooter').value=S.currentUnit.footer_text||'';
+  try {
+    const res = await fetch(`${url}/auth-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
 
-  // Buscar dados completos
-  try{
-    const res=await fetch(`${S.apiUrl}/super-admin-unit-detail?id=${unitId}`,{headers:{'Authorization':`Bearer ${S.token}`}});
-    const data=await res.json();
-    if(data.success){
-      S.currentCompany=data.data.unit?.companies;
-      S.currentSub=data.data.subscription;
-      fillCompanyData(data.data.unit?.companies);
-      fillUsers(data.data.users);
-      fillSubscription(data.data.subscription);
-      fillHistory(data.data.audit_logs);
+    if (!data.success) {
+      toast(data.error || 'Erro ao entrar', 'error');
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="log-in" class="w-4 h-4"></i><span>Entrar</span>';
+      lucide.createIcons();
+      return;
     }
-  }catch(e){console.error(e);}
 
-  document.getElementById('manageModal').classList.add('show');
-  switchTab('tab-edit');
-}
-function closeManageModal(){document.getElementById('manageModal').classList.remove('show');}
-function switchTab(tabId){
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(t=>t.classList.remove('active'));
-  document.getElementById(tabId).classList.add('active');
-  document.getElementById('tab-btn-'+tabId.replace('tab-','')).classList.add('active');
+    state.token = data.data.access_token;
+    state.user = data.data.user;
+    state.apiUrl = url;
+    localStorage.setItem('pf_admin_token', state.token);
+    localStorage.setItem('pf_admin_user', JSON.stringify(state.user));
+    localStorage.setItem('pf_api_url', url);
+
+    toast(`Bem-vindo, ${state.user.name || state.user.email}!`, 'success');
+    showDashboard();
+    loadUnits();
+
+  } catch (err) {
+    toast('Erro de conexão. Verifique a URL da API.', 'error');
+    btn.disabled = false;
+    btn.innerHTML = '<i data-lucide="log-in" class="w-4 h-4"></i><span>Entrar</span>';
+    lucide.createIcons();
+  }
 }
 
-// ==================== FILL DATA ====================
-function fillCompanyData(c){
-  if(!c)return;
-  document.getElementById('dRazao').value=c.razao_social||'';
-  document.getElementById('dCnpj').value=c.cnpj_cpf||'';
-  document.getElementById('dEmail').value=c.email||'';
-  document.getElementById('dWebsite').value=c.website||'';
-  document.getElementById('dResp').value=c.responsible_name||'';
-  document.getElementById('dRespPhone').value=c.responsible_phone||'';
+function logout() {
+  localStorage.removeItem('pf_admin_token');
+  localStorage.removeItem('pf_admin_user');
+  state.token = null;
+  state.user = null;
+  showLogin();
+  toast('Desconectado', 'info');
 }
-function fillUsers(users){
-  const list=document.getElementById('usersList');
-  if(!users||!users.length){list.innerHTML='<p class="text-sm text-slate-500 text-center py-4">Nenhum usuário</p>';return;}
-  list.innerHTML=users.map(u=>`
-    <div class="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg border border-slate-700">
-      <div>
-        <p class="text-sm font-medium text-white">${u.users?.name||'—'}</p>
-        <p class="text-xs text-slate-400">${u.users?.email||'—'} · ${u.role}</p>
+
+// ===================== VIEWS =====================
+function showLogin() {
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('dashboardScreen').classList.add('hidden');
+}
+function showDashboard() {
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('dashboardScreen').classList.remove('hidden');
+  document.getElementById('adminName').textContent = state.user?.name || state.user?.email;
+}
+
+// ===================== LOAD UNITS =====================
+async function loadUnits() {
+  if (!state.user?.units) return;
+  state.units = state.user.units;
+  renderUnits();
+  updateStats();
+}
+
+function updateStats() {
+  const total = state.units.length;
+  const active = state.units.filter(u => u.status === 'ACTIVE').length;
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statActive').textContent = active;
+  document.getElementById('statInactive').textContent = total - active;
+}
+
+function renderUnits() {
+  const grid = document.getElementById('unitsGrid');
+  if (state.units.length === 0) {
+    grid.innerHTML = `<div class="col-span-full text-center py-16 text-slate-500"><i data-lucide="store" class="w-12 h-12 mx-auto mb-3 opacity-30"></i><p class="text-sm">Nenhuma loja cadastrada</p><p class="text-xs mt-1">Clique em "Nova Loja" para começar</p></div>`;
+    lucide.createIcons();
+    return;
+  }
+
+  grid.innerHTML = state.units.map(u => {
+    const isActive = u.status === 'ACTIVE';
+    return `
+    <div class="card p-5 fade-in">
+      <div class="flex items-start justify-between mb-3">
+        <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0">
+          <i data-lucide="store" class="w-5 h-5 text-white"></i>
+        </div>
+        <span class="badge ${isActive ? 'badge-active' : 'badge-inactive'}">${isActive ? 'Ativa' : 'Inativa'}</span>
       </div>
-      <div class="flex gap-1">
-        <button onclick="userAction('reset_password','${u.user_id}')" class="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-white" title="Resetar senha"><i data-lucide="key" class="w-3.5 h-3.5"></i></button>
-        <button onclick="userAction('block','${u.user_id}')" class="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-red-400" title="Bloquear"><i data-lucide="ban" class="w-3.5 h-3.5"></i></button>
+      <h3 class="font-semibold text-white text-sm mb-1">${u.name}</h3>
+      <p class="text-xs text-slate-400 mb-3">${u.city || ''}${u.state ? ', ' + u.state : ''}</p>
+      <div class="space-y-1.5 text-xs text-slate-400 mb-4">
+        <div class="flex items-center gap-2"><i data-lucide="phone" class="w-3 h-3"></i> ${u.phone || '-'}</div>
+        <div class="flex items-center gap-2"><i data-lucide="globe" class="w-3 h-3"></i> ${u.timezone || 'America/Bahia'}</div>
       </div>
-    </div>
-  `).join('');
+      <div class="pt-3 border-t border-slate-700/50 flex items-center justify-between">
+        <span class="text-[10px] text-slate-500 font-mono truncate max-w-[140px]" title="${u.api_key}">${u.api_key}</span>
+        <div class="flex items-center gap-2">
+          <button onclick="copyText('${u.api_key}')" class="text-indigo-400 hover:text-indigo-300 text-xs flex items-center gap-1">
+            <i data-lucide="copy" class="w-3 h-3"></i> Key
+          </button>
+          <button onclick="openManageModalById('${u.id}')" class="text-emerald-400 hover:text-emerald-300 text-xs flex items-center gap-1 font-medium">
+            <i data-lucide="settings" class="w-3 h-3"></i> Gerenciar
+          </button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
   lucide.createIcons();
 }
-function fillSubscription(sub){
-  if(!sub){document.getElementById('subPlan').textContent='—';document.getElementById('subStatusBadge').textContent='Sem assinatura';document.getElementById('subStatusBadge').className='badge badge-gray inline-block mt-2';return;}
-  document.getElementById('subPlan').textContent=sub.plans?.name||'—';
-  const statusMap={ACTIVE:['badge-green','Ativa'],RENEWAL_NEAR:['badge-yellow','Renovação Próxima'],PAYMENT_PENDING:['badge-yellow','Pagamento Pendente'],OVERDUE:['badge-red','Vencida'],CANCELLED:['badge-gray','Cancelada'],SUSPENDED:['badge-red','Suspensa']};
-  const [cls,txt]=statusMap[sub.status]||['badge-gray',sub.status];
-  document.getElementById('subStatusBadge').className=`badge ${cls} inline-block mt-2`;
-  document.getElementById('subStatusBadge').textContent=txt;
-  document.getElementById('subStart').textContent=sub.start_date?new Date(sub.start_date).toLocaleDateString('pt-BR'):'—';
-  document.getElementById('subRenew').textContent=sub.renewal_date?new Date(sub.renewal_date).toLocaleDateString('pt-BR'):'—';
-  document.getElementById('subAmount').textContent=`R$ ${(sub.amount||0).toFixed(2)}`;
-  const days=sub.renewal_date?Math.ceil((new Date(sub.renewal_date)-new Date())/86400000):0;
-  document.getElementById('subDays').textContent=days>0?`${days} dias`:'Vencida';
-  document.getElementById('subTimer').textContent=days>7?`Renovação em ${days} dias`:days>0?`⚠️ Renovação em ${days} dias!`:'❌ Assinatura vencida';
+
+// ===================== NEW UNIT =====================
+function openNewUnitModal() {
+  document.getElementById('newUnitModal').classList.remove('hidden');
+  document.getElementById('newUnitForm').reset();
+  document.getElementById('fTimezone').value = 'America/Bahia';
 }
-function fillHistory(logs){
-  const list=document.getElementById('historyList');
-  if(!logs||!logs.length){list.innerHTML='<p class="text-sm text-slate-500 text-center py-4">Nenhum registro</p>';return;}
-  list.innerHTML=logs.map(l=>`
-    <div class="flex items-start gap-3 p-3 bg-slate-800/30 rounded-lg border border-slate-700/50">
-      <div class="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center shrink-0 mt-0.5">
-        <i data-lucide="${l.action==='CREATE'?'plus':l.action==='DELETE'?'trash':'edit-3'}" class="w-3 h-3 text-slate-400"></i>
-      </div>
-      <div class="min-w-0">
-        <p class="text-xs font-medium text-white">${l.action} · ${l.entity_type}</p>
-        <p class="text-[10px] text-slate-500">${l.user_email||'Sistema'} · ${new Date(l.created_at).toLocaleString('pt-BR')}</p>
-      </div>
-    </div>
-  `).join('');
+function closeNewUnitModal() {
+  document.getElementById('newUnitModal').classList.add('hidden');
+}
+
+async function createUnit() {
+  const btn = document.getElementById('btnCreate');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="animate-spin inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full"></span> Criando...';
+
+  const payload = {
+    company_name: document.getElementById('fCompany').value.trim(),
+    unit_name: document.getElementById('fUnit').value.trim(),
+    owner_name: document.getElementById('fOwnerName').value.trim(),
+    owner_email: document.getElementById('fOwnerEmail').value.trim(),
+    phone: document.getElementById('fPhone').value.trim() || '+5571999999999',
+    city: document.getElementById('fCity').value.trim() || 'Salvador',
+    state: document.getElementById('fState').value.trim() || 'BA',
+    timezone: document.getElementById('fTimezone').value,
+  };
+
+  try {
+    const res = await fetch(`${state.apiUrl}/super-admin-create-unit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.token}` },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+
+    if (!data.success) {
+      toast(data.error || 'Erro ao criar loja', 'error');
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="plus" class="w-4 h-4"></i> Criar Loja';
+      lucide.createIcons();
+      return;
+    }
+
+    // Recarregar unidades do servidor
+    await reloadUserData();
+    closeNewUnitModal();
+
+    document.getElementById('credUnitName').textContent = data.data.unit.name;
+    document.getElementById('credApiKey').textContent = data.data.unit.api_key;
+    document.getElementById('credEmail').textContent = data.data.owner.email;
+    document.getElementById('credPassword').textContent = data.data.owner.temp_password;
+    document.getElementById('credentialsModal').classList.remove('hidden');
+    lucide.createIcons();
+    toast('Loja criada com sucesso!', 'success');
+
+  } catch (err) {
+    toast('Erro de conexão ao criar loja', 'error');
+    btn.disabled = false;
+    btn.innerHTML = '<i data-lucide="plus" class="w-4 h-4"></i> Criar Loja';
+    lucide.createIcons();
+  }
+}
+
+async function reloadUserData() {
+  // Refazer login silencioso para pegar unidades atualizadas
+  try {
+    const res = await fetch(`${state.apiUrl}/auth-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: state.user.email, password: '' }) // Não funciona sem senha, então vamos buscar direto
+    });
+    // Alternativa: buscar unidades direto
+    const supabaseUrl = state.apiUrl.replace('/functions/v1', '');
+    const unitRes = await fetch(`${supabaseUrl}/rest/v1/units?is_deleted=eq.false&select=*`, {
+      headers: { 'apikey': '', 'Authorization': `Bearer ${state.token}` }
+    });
+    // Simplificação: recarregar a página ou buscar do state.user.units (o login já vem com tudo)
+    // Vamos apenas adicionar a nova unidade ao state
+    if (!state.units.find(u => u.id === 'nova')) {
+      // Na prática, o usuário deve relogar ou a gente busca as unidades
+    }
+    // Forçar refresh das unidades via API
+    const allRes = await fetch(`${state.apiUrl}/auth-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: document.getElementById('loginEmail').value, password: document.getElementById('loginPassword').value })
+    });
+    const allData = await allRes.json();
+    if (allData.success) {
+      state.user = allData.data.user;
+      state.units = state.user.units;
+      renderUnits();
+      updateStats();
+    }
+  } catch (e) {
+    console.error('reload error', e);
+  }
+}
+
+function closeCredentialsModal() {
+  document.getElementById('credentialsModal').classList.add('hidden');
+}
+
+// ===================== MANAGE MODAL =====================
+async function openManageModalById(unitId) {
+  const unit = state.units.find(u => u.id === unitId);
+  if (!unit) { toast('Loja não encontrada', 'error'); return; }
+  await openManageModal(unit);
+}
+
+async function openManageModal(unit) {
+  state.currentUnit = unit;
+  state.currentCompany = unit.companies || {};
+  document.getElementById('modalUnitName').textContent = unit.name;
+  document.getElementById('modalUnitPlan').textContent = `Plano: Carregando... | Status: ${unit.status || 'ACTIVE'}`;
+
+  // Resetar tabs
+  switchTab('editar');
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.tab-btn[data-tab="editar"]').classList.add('active');
+
+  document.getElementById('manageModal').classList.remove('hidden');
+
+  // Preencher formulário Editar Loja
+  document.getElementById('eName').value = unit.name || '';
+  document.getElementById('ePhone').value = unit.phone || '';
+  document.getElementById('eDescription').value = unit.description || '';
+  document.getElementById('ePrimaryColor').value = unit.primary_color || '#6366f1';
+  document.getElementById('ePrimaryColorHex').value = unit.primary_color || '#6366f1';
+  document.getElementById('eSecondaryColor').value = unit.secondary_color || '#8b5cf6';
+  document.getElementById('eSecondaryColorHex').value = unit.secondary_color || '#8b5cf6';
+  document.getElementById('eAccentColor').value = unit.accent_color || '#10b981';
+  document.getElementById('eAccentColorHex').value = unit.accent_color || '#10b981';
+  document.getElementById('eSeoTitle').value = unit.seo_title || '';
+  document.getElementById('eSeoDescription').value = unit.seo_description || '';
+  document.getElementById('eWelcome').value = unit.welcome_message || '';
+  document.getElementById('eFooter').value = unit.footer_text || '';
+
+  // Preencher Dados Cadastrais
+  const comp = unit.companies || {};
+  document.getElementById('cRazao').value = comp.razao_social || '';
+  document.getElementById('cFantasia').value = comp.name || '';
+  document.getElementById('cCnpj').value = comp.cnpj_cpf || '';
+  document.getElementById('cEmail').value = comp.email || '';
+  document.getElementById('cWebsite').value = comp.website || '';
+  document.getElementById('cResponsible').value = comp.responsible_name || '';
+  document.getElementById('cRespPhone').value = comp.responsible_phone || '';
+  document.getElementById('cSocial').value = comp.social_media ? JSON.stringify(comp.social_media) : '';
+
+  // Buscar detalhes completos (subscription, users, audit)
+  await loadUnitDetails(unit.id);
+}
+
+async function loadUnitDetails(unitId) {
+  try {
+    const res = await fetch(`${state.apiUrl}/super-admin-unit-detail?id=${unitId}`, {
+      headers: { 'Authorization': `Bearer ${state.token}` }
+    });
+    const data = await res.json();
+    if (!data.success) return;
+
+    const d = data.data;
+    state.currentSubscription = d.subscription;
+    state.currentUsers = d.users || [];
+    state.currentHistory = d.audit_logs || [];
+    state.currentCompany = d.unit?.companies || state.currentCompany;
+    state.currentUnit = { ...state.currentUnit, ...d.unit };
+
+    // Atualizar header com plano
+    const planName = d.subscription?.plans?.name || 'Sem plano';
+    const status = d.unit?.status || 'ACTIVE';
+    document.getElementById('modalUnitPlan').textContent = `Plano: ${planName} | Status: ${status}`;
+
+    // Renderizar Assinatura
+    renderSubscription(d.subscription);
+    // Renderizar Usuários
+    renderUsers(d.users || []);
+    // Renderizar Histórico
+    renderHistory(d.audit_logs || []);
+
+  } catch (err) {
+    console.error('loadUnitDetails error', err);
+  }
+}
+
+function closeManageModal() {
+  document.getElementById('manageModal').classList.add('hidden');
+  state.currentUnit = null;
+  state.currentCompany = null;
+  state.currentSubscription = null;
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+  document.getElementById('tab-' + tab).classList.remove('hidden');
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.tab-btn[data-tab="' + tab + '"]').classList.add('active');
   lucide.createIcons();
 }
 
-// ==================== SAVE ====================
-async function saveUnitEdit(){
-  const payload={unit_id:S.currentUnit.id,company_id:S.currentUnit.company_id,unit_data:{name:document.getElementById('eName').value,phone:document.getElementById('ePhone').value,description:document.getElementById('eDesc').value,primary_color:document.getElementById('ePrimary').value,secondary_color:document.getElementById('eSecondary').value,accent_color:document.getElementById('eAccent').value,seo_title:document.getElementById('eSeoTitle').value,seo_description:document.getElementById('eSeoDesc').value,welcome_message:document.getElementById('eWelcome').value,footer_text:document.getElementById('eFooter').value}};
-  try{
-    const res=await fetch(`${S.apiUrl}/super-admin-unit-update`,{method:'PUT',headers:{'Content-Type':'application/json','Authorization':`Bearer ${S.token}`},body:JSON.stringify(payload)});
-    const data=await res.json();
-    if(data.success){toast('Loja atualizada!','success');S.currentUnit.name=payload.unit_data.name;renderUnits();}
-    else toast(data.error||'Erro','error');
-  }catch(e){toast('Erro de conexão','error');}
-}
-async function saveCompanyData(){
-  const payload={unit_id:S.currentUnit.id,company_id:S.currentUnit.company_id,company_data:{razao_social:document.getElementById('dRazao').value,cnpj_cpf:document.getElementById('dCnpj').value,email:document.getElementById('dEmail').value,website:document.getElementById('dWebsite').value,responsible_name:document.getElementById('dResp').value,responsible_phone:document.getElementById('dRespPhone').value}};
-  try{
-    const res=await fetch(`${S.apiUrl}/super-admin-unit-update`,{method:'PUT',headers:{'Content-Type':'application/json','Authorization':`Bearer ${S.token}`},body:JSON.stringify(payload)});
-    const data=await res.json();
-    if(data.success)toast('Dados cadastrais salvos!','success');
-    else toast(data.error||'Erro','error');
-  }catch(e){toast('Erro de conexão','error');}
-}
-async function userAction(action,userId){
-  if(!confirm(`Confirma ${action==='reset_password'?'resetar senha':action==='block'?'bloquear':'desbloquear'} este usuário?`))return;
-  try{
-    const res=await fetch(`${S.apiUrl}/super-admin-user-manage`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${S.token}`},body:JSON.stringify({action,user_id:userId,unit_id:S.currentUnit.id})});
-    const data=await res.json();
-    if(data.success){toast(data.message||'Ação realizada','success');if(data.temp_password)alert(`Nova senha temporária: ${data.temp_password}`);openManageModal(S.currentUnit.id);}
-    else toast(data.error||'Erro','error');
-  }catch(e){toast('Erro de conexão','error');}
+// ===================== SAVE UNIT (EDITAR LOJA) =====================
+async function saveUnitChanges() {
+  const btn = document.getElementById('btnSaveUnit');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="animate-spin inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full"></span> Salvando...';
+
+  const unitData = {
+    name: document.getElementById('eName').value.trim(),
+    phone: document.getElementById('ePhone').value.trim(),
+    description: document.getElementById('eDescription').value.trim(),
+    primary_color: document.getElementById('ePrimaryColor').value,
+    secondary_color: document.getElementById('eSecondaryColor').value,
+    accent_color: document.getElementById('eAccentColor').value,
+    seo_title: document.getElementById('eSeoTitle').value.trim(),
+    seo_description: document.getElementById('eSeoDescription').value.trim(),
+    welcome_message: document.getElementById('eWelcome').value.trim(),
+    footer_text: document.getElementById('eFooter').value.trim(),
+  };
+
+  try {
+    const res = await fetch(`${state.apiUrl}/super-admin-unit-update`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${state.token}`
+      },
+      body: JSON.stringify({
+        unit_id: state.currentUnit.id,
+        company_id: state.currentUnit.company_id || state.currentCompany.id,
+        unit_data: unitData
+      })
+    });
+    const data = await res.json();
+
+    if (!data.success) {
+      toast(data.error || 'Erro ao salvar', 'error');
+    } else {
+      toast('Loja atualizada com sucesso!', 'success');
+      // Atualizar local
+      Object.assign(state.currentUnit, unitData);
+      renderUnits();
+    }
+  } catch (err) {
+    toast('Erro de conexão: ' + err.message, 'error');
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i> Salvar Alterações';
+  lucide.createIcons();
 }
 
-// ==================== NEW UNIT ====================
-function openNewUnitModal(){document.getElementById('newUnitModal').classList.add('show');}
-function closeNewUnitModal(){document.getElementById('newUnitModal').classList.remove('show');}
-async function createUnit(){
-  const btn=document.getElementById('nBtn'); btn.disabled=true; btn.innerHTML='<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>';
-  const payload={company_name:document.getElementById('nCompany').value,unit_name:document.getElementById('nUnit').value,owner_name:document.getElementById('nOwnerName').value,owner_email:document.getElementById('nOwnerEmail').value,phone:document.getElementById('nPhone').value,city:document.getElementById('nCity').value};
-  try{
-    const res=await fetch(`${S.apiUrl}/super-admin-create-unit`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${S.token}`},body:JSON.stringify(payload)});
-    const data=await res.json();
-    if(data.success){
-      toast('Loja criada!','success'); closeNewUnitModal();
-      document.getElementById('cApiKey').textContent=data.data.unit.api_key;
-      document.getElementById('cEmail').textContent=data.data.owner.email;
-      document.getElementById('cPass').textContent=data.data.owner.temp_password;
-      document.getElementById('credModal').classList.add('show');
-      S.units.unshift(data.data.unit); renderUnits(); updateStats();
-    }else{toast(data.error||'Erro','error');}
-  }catch(e){toast('Erro de conexão','error');}
-  btn.disabled=false; btn.innerHTML='<i data-lucide="plus" class="w-4 h-4"></i> Criar Loja'; lucide.createIcons();
-}
-function closeCredModal(){document.getElementById('credModal').classList.remove('show');}
+// ===================== SAVE COMPANY (DADOS CADASTRAIS) =====================
+async function saveCompanyChanges() {
+  const btn = document.getElementById('btnSaveCompany');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="animate-spin inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full"></span> Salvando...';
 
-// ==================== UTILS ====================
-function copyText(text){navigator.clipboard.writeText(text).then(()=>toast('Copiado!','success'));}
-function toast(msg,type='info'){
-  const t=document.getElementById('toast');
-  const colors={success:'bg-emerald-500',error:'bg-rose-500',warning:'bg-amber-500',info:'bg-indigo-500'};
-  t.className=`fixed top-4 right-4 px-4 py-3 rounded-lg text-white text-sm font-medium z-[9999] transition-all duration-300 ${colors[type]||colors.info}`;
-  t.textContent=msg; t.style.opacity='1'; t.style.transform='translateX(0)';
-  setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(100%)';},3000);
+  let social = {};
+  try {
+    social = JSON.parse(document.getElementById('cSocial').value || '{}');
+  } catch (e) {}
+
+  const companyData = {
+    name: document.getElementById('cFantasia').value.trim(),
+    razao_social: document.getElementById('cRazao').value.trim(),
+    cnpj_cpf: document.getElementById('cCnpj').value.trim(),
+    email: document.getElementById('cEmail').value.trim(),
+    website: document.getElementById('cWebsite').value.trim(),
+    responsible_name: document.getElementById('cResponsible').value.trim(),
+    responsible_phone: document.getElementById('cRespPhone').value.trim(),
+    social_media: social,
+  };
+
+  try {
+    const res = await fetch(`${state.apiUrl}/super-admin-unit-update`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${state.token}`
+      },
+      body: JSON.stringify({
+        unit_id: state.currentUnit.id,
+        company_id: state.currentUnit.company_id || state.currentCompany.id,
+        company_data: companyData
+      })
+    });
+    const data = await res.json();
+
+    if (!data.success) {
+      toast(data.error || 'Erro ao salvar', 'error');
+    } else {
+      toast('Dados cadastrais atualizados!', 'success');
+    }
+  } catch (err) {
+    toast('Erro de conexão: ' + err.message, 'error');
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i> Salvar Dados Cadastrais';
+  lucide.createIcons();
+}
+
+// ===================== RENDER SUBSCRIPTION =====================
+function renderSubscription(sub) {
+  const container = document.getElementById('subscriptionContent');
+  if (!sub) {
+    container.innerHTML = `
+      <div class="text-center py-10">
+        <div class="w-12 h-12 rounded-full bg-slate-700/30 flex items-center justify-center mx-auto mb-3">
+          <i data-lucide="credit-card" class="w-6 h-6 text-slate-500"></i>
+        </div>
+        <p class="text-slate-400 text-sm">Sem assinatura ativa</p>
+      </div>`;
+    lucide.createIcons();
+    return;
+  }
+
+  const planName = sub.plans?.name || 'Personalizado';
+  const planPrice = sub.plans?.price || sub.amount || 0;
+  const startDate = sub.start_date ? new Date(sub.start_date).toLocaleDateString('pt-BR') : '-';
+  const endDate = sub.end_date ? new Date(sub.end_date).toLocaleDateString('pt-BR') : '-';
+  const renewalDate = sub.renewal_date ? new Date(sub.renewal_date).toLocaleDateString('pt-BR') : '-';
+  const daysLeft = sub.end_date ? Math.max(0, Math.ceil((new Date(sub.end_date) - new Date()) / (1000*60*60*24))) : 0;
+
+  let statusBadge = 'badge-active';
+  let statusText = 'Ativa';
+  let timerColor = 'text-emerald-400';
+  let timerBg = 'bg-emerald-500/10 border-emerald-500/30';
+
+  if (sub.status === 'RENEWAL_NEAR') { statusBadge = 'badge-warning'; statusText = 'Renovação Próxima'; timerColor = 'text-amber-400'; timerBg = 'bg-amber-500/10 border-amber-500/30'; }
+  else if (sub.status === 'OVERDUE' || sub.status === 'PAYMENT_PENDING') { statusBadge = 'badge-inactive'; statusText = 'Pagamento Pendente'; timerColor = 'text-rose-400'; timerBg = 'bg-rose-500/10 border-rose-500/30'; }
+  else if (sub.status === 'CANCELLED') { statusBadge = 'badge-inactive'; statusText = 'Cancelada'; timerColor = 'text-rose-400'; timerBg = 'bg-rose-500/10 border-rose-500/30'; }
+
+  container.innerHTML = `
+    <div class="text-center mb-6 p-5 rounded-xl border ${timerBg}">
+      <p class="text-xs text-slate-400 mb-1">Plano Atual</p>
+      <h4 class="text-xl font-bold text-white mb-2">${planName}</h4>
+      <span class="badge ${statusBadge}">${statusText}</span>
+      <div class="mt-4">
+        <p class="text-3xl font-bold ${timerColor}">${daysLeft} <span class="text-sm font-normal text-slate-400">dias restantes</span></p>
+        <p class="text-xs text-slate-400 mt-1">Renovação em ${renewalDate}</p>
+      </div>
+    </div>
+    <div class="grid grid-cols-2 gap-3 mb-4">
+      <div class="card p-4">
+        <p class="text-xs text-slate-400 mb-1">Início</p>
+        <p class="text-sm font-semibold text-white">${startDate}</p>
+      </div>
+      <div class="card p-4">
+        <p class="text-xs text-slate-400 mb-1">Renovação</p>
+        <p class="text-sm font-semibold text-white">${renewalDate}</p>
+      </div>
+      <div class="card p-4">
+        <p class="text-xs text-slate-400 mb-1">Valor</p>
+        <p class="text-sm font-semibold text-white">R$ ${parseFloat(planPrice).toFixed(2)}</p>
+      </div>
+      <div class="card p-4">
+        <p class="text-xs text-slate-400 mb-1">Ciclo</p>
+        <p class="text-sm font-semibold text-white">${sub.billing_cycle === 'MONTHLY' ? 'Mensal' : sub.billing_cycle === 'YEARLY' ? 'Anual' : sub.billing_cycle}</p>
+      </div>
+    </div>
+    <div class="card p-4">
+      <p class="text-xs text-slate-400 mb-2">Status do Pagamento</p>
+      <div class="flex items-center gap-2">
+        <div class="w-2 h-2 rounded-full ${sub.payment_status === 'PAID' ? 'bg-emerald-400' : 'bg-rose-400'}"></div>
+        <span class="text-sm text-white">${sub.payment_status === 'PAID' ? 'Pago' : sub.payment_status === 'PENDING' ? 'Pendente' : sub.payment_status === 'FAILED' ? 'Falhou' : sub.payment_status}</span>
+      </div>
+    </div>
+  `;
+  lucide.createIcons();
+}
+
+// ===================== RENDER USERS =====================
+function renderUsers(users) {
+  const container = document.getElementById('usersList');
+  if (!users || users.length === 0) {
+    container.innerHTML = `<p class="text-slate-500 text-sm text-center py-8">Nenhum usuário vinculado</p>`;
+    return;
+  }
+
+  container.innerHTML = users.map(u => {
+    const user = u.users || {};
+    const isActive = u.is_active !== false;
+    return `
+    <div class="card p-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
+          ${(user.name || user.email || 'U').charAt(0).toUpperCase()}
+        </div>
+        <div>
+          <p class="text-sm font-medium text-white">${user.name || user.email || 'Usuário'}</p>
+          <p class="text-xs text-slate-400">${user.email || ''}</p>
+          <span class="text-[10px] px-2 py-0.5 rounded-full mt-1 inline-block ${isActive ? 'bg-emerald-500/15 text-emerald-400' : 'bg-rose-500/15 text-rose-400'}">${isActive ? 'Ativo' : 'Bloqueado'}</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="manageUser('${u.user_id}', 'reset_password')" class="text-xs text-indigo-400 hover:text-indigo-300 px-2 py-1 rounded hover:bg-indigo-500/10 transition-colors">Resetar Senha</button>
+        ${isActive 
+          ? `<button onclick="manageUser('${u.user_id}', 'block')" class="text-xs text-rose-400 hover:text-rose-300 px-2 py-1 rounded hover:bg-rose-500/10 transition-colors">Bloquear</button>`
+          : `<button onclick="manageUser('${u.user_id}', 'unblock')" class="text-xs text-emerald-400 hover:text-emerald-300 px-2 py-1 rounded hover:bg-emerald-500/10 transition-colors">Desbloquear</button>`
+        }
+      </div>
+    </div>`;
+  }).join('');
+  lucide.createIcons();
+}
+
+async function manageUser(userId, action) {
+  try {
+    const res = await fetch(`${state.apiUrl}/super-admin-user-manage`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${state.token}`
+      },
+      body: JSON.stringify({
+        action,
+        user_id: userId,
+        unit_id: state.currentUnit.id
+      })
+    });
+    const data = await res.json();
+    if (!data.success) {
+      toast(data.error || 'Erro', 'error');
+      return;
+    }
+    if (action === 'reset_password') {
+      toast(`Senha temporária: ${data.temp_password}`, 'success');
+      alert(`Nova senha temporária: ${data.temp_password}
+
+Copie e envie para o usuário.`);
+    } else {
+      toast(data.message, 'success');
+    }
+    // Recarregar usuários
+    await loadUnitDetails(state.currentUnit.id);
+  } catch (err) {
+    toast('Erro: ' + err.message, 'error');
+  }
+}
+
+// ===================== RENDER HISTORY =====================
+function renderHistory(logs) {
+  const container = document.getElementById('historyList');
+  if (!logs || logs.length === 0) {
+    container.innerHTML = `<p class="text-slate-500 text-sm text-center py-8">Nenhum registro no histórico</p>`;
+    return;
+  }
+
+  container.innerHTML = logs.map(log => {
+    const date = new Date(log.created_at).toLocaleString('pt-BR');
+    const actionColors = { CREATE: 'text-emerald-400', UPDATE: 'text-amber-400', DELETE: 'text-rose-400', LOGIN: 'text-indigo-400', LOGOUT: 'text-slate-400' };
+    const actionLabels = { CREATE: 'Criou', UPDATE: 'Alterou', DELETE: 'Removeu', LOGIN: 'Entrou', LOGOUT: 'Saiu' };
+    return `
+    <div class="card p-4">
+      <div class="flex items-start justify-between mb-2">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold ${actionColors[log.action] || 'text-slate-400'}">${actionLabels[log.action] || log.action}</span>
+          <span class="text-xs text-slate-500">${log.entity_type}</span>
+        </div>
+        <span class="text-[10px] text-slate-500">${date}</span>
+      </div>
+      <p class="text-xs text-slate-400">Por: ${log.user_email || 'Sistema'}</p>
+      ${log.old_values ? `<div class="mt-2 text-[10px] text-slate-500 bg-slate-800/50 rounded p-2 overflow-x-auto"><pre class="m-0">${JSON.stringify(log.old_values, null, 2)}</pre></div>` : ''}
+    </div>`;
+  }).join('');
+  lucide.createIcons();
+}
+
+// ===================== DELETE UNIT =====================
+async function confirmDeleteUnit() {
+  if (!state.currentUnit) return;
+  const unitName = state.currentUnit.name;
+  if (!confirm(`Tem certeza que deseja remover "${unitName}"?
+
+A loja será desativada (soft delete). Os dados não serão apagados do banco.`)) return;
+
+  try {
+    const res = await fetch(`${state.apiUrl}/super-admin-unit-update?id=${state.currentUnit.id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${state.token}`
+      }
+    });
+    const data = await res.json();
+    if (!data.success) {
+      toast(data.error || 'Erro ao remover loja', 'error');
+      return;
+    }
+    toast('Loja removida com sucesso', 'success');
+    closeManageModal();
+    // Remover do state local
+    state.units = state.units.filter(u => u.id !== state.currentUnit.id);
+    renderUnits();
+    updateStats();
+  } catch (err) {
+    toast('Erro de conexão ao remover loja', 'error');
+  }
+}
+
+// ===================== UTILS =====================
+function copyToClipboard(elementId) {
+  const text = document.getElementById(elementId).textContent;
+  copyText(text);
+}
+function copyText(text) {
+  navigator.clipboard.writeText(text).then(() => toast('Copiado!', 'success'));
+}
+function toast(message, type = 'info') {
+  const colors = { success: 'bg-emerald-500', error: 'bg-rose-500', warning: 'bg-amber-500', info: 'bg-indigo-500' };
+  const el = document.createElement('div');
+  el.className = `toast ${colors[type] || colors.info}`;
+  el.textContent = message;
+  document.body.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateX(100%)'; setTimeout(() => el.remove(), 300); }, 4000);
 }
 </script>
 </body>
