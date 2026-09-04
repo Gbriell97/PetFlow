@@ -1,0 +1,92 @@
+{
+  "name": "PetFlow | 02 - Eventos do Sistema (notificacoes)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "petflow/events",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "w2-events-webhook",
+      "name": "Webhook Eventos",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-800, 400],
+      "webhookId": "petflow-events"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Converte um evento do backend (system_events) em mensagem WhatsApp.\n// Payload esperado:\n// {\n//   \"event\": \"APPOINTMENT_CONFIRMED\",\n//   \"data\": { \"phone\": \"5571...\", \"customer\": \"Gabriel\", \"pet\": \"Thor\",\n//             \"service\": \"Banho\", \"date\": \"20/08\", \"time\": \"15:00\",\n//             \"store\": \"Pet Shop Bicho Feliz\", \"value\": \"R$ 50\", \"reason\": \"\" }\n// }\nconst e = $json.body || {};\nconst v = e.data || {};\n\nif (!v.phone) {\n  throw new Error('Evento sem data.phone — nao e possivel notificar.');\n}\n\nconst templates = {\n  APPOINTMENT_CREATED:   `Recebemos seu pedido de agendamento! 🐾\\n\\n🐶 Pet: ${v.pet}\\n🛁 Servico: ${v.service}\\n📅 ${v.date} as ${v.time}\\n\\nAssim que a loja confirmar, avisamos voce.`,\n  APPOINTMENT_CONFIRMED: `✅ Agendamento confirmado!\\n\\n🐶 Pet: ${v.pet}\\n🛁 Servico: ${v.service}\\n📅 ${v.date} as ${v.time}\\n\\nEstamos esperando voces! ❤️`,\n  APPOINTMENT_REJECTED:  `😕 Infelizmente nao conseguimos confirmar seu agendamento para ${v.date} as ${v.time}.\\n${v.reason ? 'Motivo: ' + v.reason + '\\n' : ''}\\nQuer escolher outro horario? E so me dizer!`,\n  APPOINTMENT_CANCELLED: `Seu agendamento de ${v.service} para ${v.pet} em ${v.date} as ${v.time} foi cancelado.\\nSe quiser remarcar, estou por aqui! 🐾`,\n  APPOINTMENT_COMPLETED: `Obrigado pela visita! 🐶✨\\nEsperamos que ${v.pet} tenha adorado o ${v.service}. Ate a proxima!`,\n  QUOTE_SENT:            `🧾 Orcamento para ${v.pet}:\\n${v.items || v.service}\\n\\nTotal: ${v.value}\\n\\nDeseja agendar?`,\n  REMINDER:              `⏰ Lembrete: amanha tem ${v.service} para ${v.pet} as ${v.time}!\\n\\nSe precisar remarcar, me avisa por aqui.`,\n  HUMAN_HANDOFF:         `Claro! Ja chamei um atendente para falar com voce. 👤\\nAguarde um instante.`\n};\n\nconst text = templates[e.event];\nif (!text) {\n  return [{ json: { skipped: true, reason: 'evento_sem_template', event: e.event } }];\n}\n\nreturn [{ json: { skipped: false, phone: v.phone, text, event: e.event } }];"
+      },
+      "id": "w2-render",
+      "name": "Renderizar mensagem",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-560, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "id": "not-skipped",
+              "leftValue": "={{ $json.skipped }}",
+              "rightValue": false,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "w2-if-skipped",
+      "name": "Tem mensagem?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-340, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.avisaapi.com.br/api/actions/sendMessage",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.AVISA_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "number", "value": "={{ $json.phone }}" },
+            { "name": "message", "value": "={{ $json.text }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "w2-send-wa",
+      "name": "Enviar WhatsApp (AvisaAPI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-100, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Eventos": {
+      "main": [[{ "node": "Renderizar mensagem", "type": "main", "index": 0 }]]
+    },
+    "Renderizar mensagem": {
+      "main": [[{ "node": "Tem mensagem?", "type": "main", "index": 0 }]]
+    },
+    "Tem mensagem?": {
+      "main": [[{ "node": "Enviar WhatsApp (AvisaAPI)", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1", "timezone": "America/Bahia" },
+  "staticData": null,
+  "tags": [{ "name": "petflow" }, { "name": "whatsapp" }, { "name": "notificacoes" }]
+}
