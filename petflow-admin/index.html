@@ -57,6 +57,7 @@
   ::-webkit-scrollbar-track { background: var(--bg-primary); }
   ::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 4px; }
   .hidden { display: none !important; }
+  .cors-banner { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 10px; padding: 12px 16px; }
 </style>
 </head>
 <body>
@@ -114,6 +115,17 @@
       </div>
     </div>
   </header>
+
+  <!-- Banner de erro CORS -->
+  <div id="corsBanner" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+    <div class="cors-banner flex items-start gap-3">
+      <i data-lucide="shield-alert" class="w-5 h-5 text-rose-400 shrink-0 mt-0.5"></i>
+      <div>
+        <p class="text-sm text-rose-300 font-medium">Erro de conexão com a API (CORS)</p>
+        <p class="text-xs text-rose-400 mt-0.5">O domínio <code class="bg-rose-500/20 px-1 rounded">petflow-admin.onrender.com</code> precisa estar liberado nas Edge Functions do Supabase. Configure o header <code class="bg-rose-500/20 px-1 rounded">Access-Control-Allow-Origin</code> nas suas funções.</p>
+      </div>
+    </div>
+  </div>
 
   <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
@@ -340,6 +352,17 @@ function isTokenExpired(token) {
   return payload.exp * 1000 < Date.now();
 }
 
+/** Verifica se um erro de fetch é provavelmente CORS */
+function isCorsError(err) {
+  return err.name === 'TypeError' && err.message.includes('Failed to fetch');
+}
+
+/** Exibe ou oculta o banner de CORS no dashboard */
+function setCorsBanner(show) {
+  const banner = document.getElementById('corsBanner');
+  if (banner) banner.classList.toggle('hidden', !show);
+}
+
 /** Helper universal para chamadas de API com tratamento de erro e 401 */
 async function apiRequest(endpoint, options = {}) {
   const url = `${state.apiUrl}${endpoint}`;
@@ -375,8 +398,12 @@ async function apiRequest(endpoint, options = {}) {
 
     return data;
   } catch (err) {
-    if (err.name === 'TypeError' && err.message.includes('fetch')) {
-      toast('Erro de conexão. Verifique sua internet ou a URL da API.', 'error');
+    if (isCorsError(err)) {
+      setCorsBanner(true);
+      const msg = state.apiUrl && state.apiUrl.includes('supabase.co')
+        ? 'Erro de conexão (CORS). O domínio do painel precisa estar liberado nas Edge Functions do Supabase.'
+        : 'Erro de conexão. Verifique sua internet ou a URL da API.';
+      toast(msg, 'error');
     }
     throw err;
   }
@@ -496,6 +523,7 @@ async function doLogin() {
 
 function logout() {
   clearSession();
+  setCorsBanner(false);
   showLogin();
   toast('Desconectado com sucesso', 'info');
 }
@@ -536,10 +564,11 @@ async function loadUnits() {
       state.units = [];
     }
   } catch (err) {
-    if (err.status !== 401) {
+    // apiRequest já exibe toast para 401 e CORS; evita mensagem duplicada
+    if (err.status !== 401 && !isCorsError(err)) {
       toast('Erro ao carregar unidades', 'error');
-      console.error('loadUnits error:', err);
     }
+    console.error('loadUnits error:', err);
     state.units = state.user?.units || [];
   }
 
@@ -648,7 +677,7 @@ async function createUnit() {
     toast('Loja criada com sucesso!', 'success');
 
   } catch (err) {
-    if (err.status !== 401) toast('Erro de conexão ao criar loja', 'error');
+    if (!isCorsError(err)) toast('Erro de conexão ao criar loja', 'error');
     setLoading(btn, false, '<i data-lucide="plus" class="w-4 h-4"></i> Criar Loja');
   }
 }
@@ -692,7 +721,7 @@ async function manageUnit(unitId) {
       document.getElementById('manageUnitPlan').textContent = 'Erro ao carregar dados';
     }
   } catch (err) {
-    if (err.status !== 401) {
+    if (err.status !== 401 && !isCorsError(err)) {
       console.error('Manage unit error:', err);
       toast('Erro ao carregar detalhes da loja', 'error');
       document.getElementById('manageUnitPlan').textContent = 'Erro de conexão';
@@ -798,7 +827,7 @@ async function saveUnitEdit() {
       }
     }
   } catch (err) {
-    if (err.status !== 401) toast('Erro de conexão ao salvar', 'error');
+    if (!isCorsError(err) && err.status !== 401) toast('Erro de conexão ao salvar', 'error');
   }
 
   setLoading(btn, false, '<i data-lucide="save" class="w-4 h-4"></i> Salvar Alterações');
@@ -851,7 +880,7 @@ async function saveCompanyEdit() {
       }
     }
   } catch (err) {
-    if (err.status !== 401) toast('Erro de conexão', 'error');
+    if (!isCorsError(err) && err.status !== 401) toast('Erro de conexão', 'error');
   }
 
   setLoading(btn, false, '<i data-lucide="save" class="w-4 h-4"></i> Salvar Dados Cadastrais');
@@ -860,7 +889,8 @@ async function saveCompanyEdit() {
 // ===================== RENDER ASSINATURA =====================
 function renderSubscription(sub) {
   const container = document.getElementById('subscriptionContent');
-  if (!sub) {
+  // Normaliza: array vazio também conta como "sem assinatura"
+  if (!sub || (Array.isArray(sub) && sub.length === 0)) {
     container.innerHTML = `
       <div class="text-center py-12">
         <div class="w-14 h-14 rounded-full bg-slate-700/50 flex items-center justify-center mx-auto mb-4">
@@ -873,11 +903,13 @@ function renderSubscription(sub) {
     return;
   }
 
-  const plan = sub.plans || sub.plan || { name: 'Sem plano', price: 0 };
-  const endDate = sub.end_date || sub.renewal_date;
+  // Se vier array, pega o primeiro elemento
+  const subObj = Array.isArray(sub) ? sub[0] : sub;
+  const plan = subObj.plans || subObj.plan || { name: 'Sem plano', price: 0 };
+  const endDate = subObj.end_date || subObj.renewal_date;
   const daysLeft = endDate ? Math.max(0, Math.ceil((new Date(endDate) - new Date()) / (1000 * 60 * 60 * 24))) : 0;
-  const statusClass = sub.status === 'ACTIVE' ? 'badge-active' : sub.status === 'RENEWAL_NEAR' ? 'badge-renewal' : 'badge-inactive';
-  const statusText = { ACTIVE: 'Ativa', RENEWAL_NEAR: 'Renovação Próxima', PAYMENT_PENDING: 'Pagamento Pendente', OVERDUE: 'Vencida', CANCELLED: 'Cancelada', SUSPENDED: 'Suspensa' }[sub.status] || sub.status;
+  const statusClass = subObj.status === 'ACTIVE' ? 'badge-active' : subObj.status === 'RENEWAL_NEAR' ? 'badge-renewal' : 'badge-inactive';
+  const statusText = { ACTIVE: 'Ativa', RENEWAL_NEAR: 'Renovação Próxima', PAYMENT_PENDING: 'Pagamento Pendente', OVERDUE: 'Vencida', CANCELLED: 'Cancelada', SUSPENDED: 'Suspensa' }[subObj.status] || subObj.status;
   const daysColor = daysLeft <= 7 ? 'amber' : 'emerald';
 
   container.innerHTML = `
@@ -888,9 +920,9 @@ function renderSubscription(sub) {
         <span class="badge ${statusClass} mt-2 inline-block">${escapeHtml(statusText)}</span>
       </div>
       <div class="grid grid-cols-2 gap-4">
-        <div class="card p-4"><p class="text-xs text-slate-400 mb-1">Início</p><p class="text-white font-medium text-sm">${sub.start_date ? new Date(sub.start_date).toLocaleDateString('pt-BR') : '-'}</p></div>
-        <div class="card p-4"><p class="text-xs text-slate-400 mb-1">Renovação</p><p class="text-white font-medium text-sm">${sub.renewal_date ? new Date(sub.renewal_date).toLocaleDateString('pt-BR') : '-'}</p></div>
-        <div class="card p-4"><p class="text-xs text-slate-400 mb-1">Valor</p><p class="text-white font-medium text-sm">R$ ${parseFloat(sub.amount || 0).toFixed(2)} / ${sub.billing_cycle === 'MONTHLY' ? 'mês' : sub.billing_cycle === 'YEARLY' ? 'ano' : 'trimestre'}</p></div>
+        <div class="card p-4"><p class="text-xs text-slate-400 mb-1">Início</p><p class="text-white font-medium text-sm">${subObj.start_date ? new Date(subObj.start_date).toLocaleDateString('pt-BR') : '-'}</p></div>
+        <div class="card p-4"><p class="text-xs text-slate-400 mb-1">Renovação</p><p class="text-white font-medium text-sm">${subObj.renewal_date ? new Date(subObj.renewal_date).toLocaleDateString('pt-BR') : '-'}</p></div>
+        <div class="card p-4"><p class="text-xs text-slate-400 mb-1">Valor</p><p class="text-white font-medium text-sm">R$ ${parseFloat(subObj.amount || 0).toFixed(2)} / ${subObj.billing_cycle === 'MONTHLY' ? 'mês' : subObj.billing_cycle === 'YEARLY' ? 'ano' : 'trimestre'}</p></div>
         <div class="card p-4"><p class="text-xs text-slate-400 mb-1">Dias Restantes</p><p class="text-${daysColor}-400 font-bold text-lg">${daysLeft}</p></div>
       </div>
       ${daysLeft <= 7 ? `
@@ -984,7 +1016,7 @@ async function resetUserPassword(userId, email) {
       toast(data.error || 'Erro ao redefinir senha', 'error');
     }
   } catch (err) {
-    if (err.status !== 401) toast('Erro ao redefinir senha', 'error');
+    if (!isCorsError(err) && err.status !== 401) toast('Erro ao redefinir senha', 'error');
   }
 }
 
@@ -1004,7 +1036,7 @@ async function toggleUserBlock(userId, isActive) {
       toast(data.error || 'Erro ao alterar status', 'error');
     }
   } catch (err) {
-    if (err.status !== 401) toast('Erro ao alterar status do usuário', 'error');
+    if (!isCorsError(err) && err.status !== 401) toast('Erro ao alterar status do usuário', 'error');
   }
 }
 
@@ -1030,7 +1062,9 @@ async function deleteCurrentUnit() {
       toast(data.error || 'Erro ao excluir loja', 'error');
     }
   } catch (err) {
-    if (err.status !== 401) toast('Erro ao excluir loja', 'error');
+    if (!isCorsError(err) && err.status !== 401) {
+      toast('Erro ao excluir loja. Verifique se a Edge Function existe no Supabase.', 'error');
+    }
   }
 }
 
