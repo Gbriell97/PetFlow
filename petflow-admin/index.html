@@ -614,7 +614,7 @@ async function saveUnitEdit() {
 
   try {
     const res = await fetch(`${state.apiUrl}/super-admin-unit-update`, {
-      method: 'PUT',
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${state.token}`
@@ -670,7 +670,7 @@ async function saveCompanyEdit() {
 
   try {
     const res = await fetch(`${state.apiUrl}/super-admin-unit-update`, {
-      method: 'PUT',
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${state.token}`
