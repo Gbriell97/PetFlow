@@ -8,49 +8,55 @@
 <script src="https://unpkg.com/lucide@latest"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root { --bg-primary: #0f172a; --bg-secondary: #1e293b; --bg-tertiary: #334155; --text-primary: #f1f5f9; --text-secondary: #94a3b8; --primary: #6366f1; --primary-dark: #4f46e5; --success: #10b981; --warning: #f59e0b; --error: #ef4444; --border: #334155; }
-  * { font-family: 'Inter', sans-serif; box-sizing: border-box; }
-  body { background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; margin: 0; }
-  .glass { background: rgba(30,41,59,0.9); backdrop-filter: blur(12px); border: 1px solid var(--border); }
-  .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); transition: all 0.2s; border: none; cursor: pointer; }
-  .btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 10px 25px -5px rgba(99,102,241,0.4); }
-  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-  .input-dark { background: var(--bg-secondary); border: 1px solid var(--border); color: var(--text-primary); transition: all 0.2s; width: 100%; }
+  :root {
+    --bg-primary: #0f172a;
+    --bg-secondary: #1e293b;
+    --bg-tertiary: #334155;
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --primary: #6366f1;
+    --primary-dark: #4f46e5;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --error: #ef4444;
+    --border: #334155;
+  }
+  * { font-family: 'Inter', sans-serif; }
+  body { background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }
+  .glass { background: rgba(30,41,59,0.8); backdrop-filter: blur(12px); border: 1px solid var(--border); }
+  .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); transition: all 0.2s; }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 10px 25px -5px rgba(99,102,241,0.4); }
+  .input-dark { background: var(--bg-secondary); border: 1px solid var(--border); color: var(--text-primary); transition: all 0.2s; }
   .input-dark:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
   .card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; transition: all 0.2s; }
-  .card-hover:hover { border-color: var(--primary); transform: translateY(-2px); }
-  .fade-in { animation: fadeIn 0.35s ease-out both; }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-  .toast { position: fixed; top: 20px; right: 20px; padding: 14px 20px; border-radius: 10px; color: white; font-weight: 500; z-index: 99999; animation: slideIn 0.3s ease-out; max-width: 360px; word-break: break-word; }
-  @keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(5px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; }
-  .modal-content { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 16px; max-width: 540px; width: 100%; max-height: 92vh; overflow-y: auto; position: relative; }
-  .modal-content-lg { max-width: 880px; }
-  .copy-field { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-family: monospace; font-size: 13px; color: var(--text-secondary); position: relative; word-break: break-all; padding-right: 70px; }
+  .card:hover { border-color: var(--primary); transform: translateY(-2px); }
+  .fade-in { animation: fadeIn 0.4s ease-out; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .toast { position: fixed; top: 20px; right: 20px; padding: 14px 20px; border-radius: 10px; color: white; font-weight: 500; z-index: 9999; animation: slideIn 0.3s ease-out; }
+  @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; }
+  .modal-content { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 16px; max-width: 520px; width: 90%; max-height: 90vh; overflow-y: auto; }
+  .modal-content-lg { max-width: 800px; }
+  .copy-field { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-family: monospace; font-size: 13px; color: var(--text-secondary); position: relative; }
   .copy-btn { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: var(--bg-tertiary); border: none; color: var(--text-primary); padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; }
   .copy-btn:hover { background: var(--primary); }
-  .badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; display: inline-block; }
+  .badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
   .badge-active { background: rgba(16,185,129,0.15); color: var(--success); border: 1px solid rgba(16,185,129,0.3); }
   .badge-inactive { background: rgba(239,68,68,0.15); color: var(--error); border: 1px solid rgba(239,68,68,0.3); }
   .badge-renewal { background: rgba(245,158,11,0.15); color: var(--warning); border: 1px solid rgba(245,158,11,0.3); }
-  .badge-pending { background: rgba(99,102,241,0.15); color: var(--primary); border: 1px solid rgba(99,102,241,0.3); }
-  .tab-btn { padding: 10px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; color: var(--text-secondary); transition: all 0.2s; cursor: pointer; border: none; background: transparent; white-space: nowrap; }
+  .tab-btn { padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; color: var(--text-secondary); transition: all 0.2s; cursor: pointer; border: none; background: transparent; }
   .tab-btn:hover { color: var(--text-primary); background: rgba(99,102,241,0.1); }
   .tab-btn.active { background: var(--primary); color: white; }
-  .skeleton { background: linear-gradient(90deg, var(--bg-tertiary) 25%, #475569 50%, var(--bg-tertiary) 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 6px; }
-  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-  ::-webkit-scrollbar { width: 7px; }
+  ::-webkit-scrollbar { width: 8px; }
   ::-webkit-scrollbar-track { background: var(--bg-primary); }
   ::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 4px; }
-  .empty-state { text-align: center; padding: 40px 20px; color: var(--text-secondary); }
-  .error-box { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 10px; padding: 16px; color: #fca5a5; font-size: 13px; }
 </style>
 </head>
 <body>
 
-<!-- LOGIN -->
+<!-- LOGIN SCREEN -->
 <div id="loginScreen" class="min-h-screen flex items-center justify-center p-4">
-  <div class="w-full max-w-md fade-in">
+  <div class="w-full max-w-md">
     <div class="text-center mb-8">
       <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-500/30">
         <i data-lucide="shield-check" class="w-8 h-8 text-white"></i>
@@ -59,22 +65,22 @@
       <p class="text-slate-400 text-sm">Gerencie todas as unidades da plataforma</p>
     </div>
     <div class="glass rounded-2xl p-8">
-      <div class="mb-5">
+      <div class="mb-6">
         <label class="block text-sm font-medium text-slate-300 mb-2">Email</label>
-        <input type="email" id="loginEmail" class="input-dark rounded-lg px-4 py-3" placeholder="seu@email.com" value="gabriel1997barreto@gmail.com">
+        <input type="email" id="loginEmail" class="input-dark w-full rounded-lg px-4 py-3" placeholder="seu@email.com" value="gabriel1997barreto@gmail.com">
       </div>
-      <div class="mb-5">
+      <div class="mb-6">
         <label class="block text-sm font-medium text-slate-300 mb-2">Senha</label>
-        <input type="password" id="loginPassword" class="input-dark rounded-lg px-4 py-3" placeholder="••••••••">
+        <input type="password" id="loginPassword" class="input-dark w-full rounded-lg px-4 py-3" placeholder="••••••••">
       </div>
       <div class="mb-6">
         <label class="block text-sm font-medium text-slate-300 mb-2">URL da API</label>
-        <input type="text" id="apiUrl" class="input-dark rounded-lg px-4 py-3" placeholder="https://...supabase.co/functions/v1" value="https://jnmtwalmfkcxixiwqbjm.supabase.co/functions/v1">
+        <input type="text" id="apiUrl" class="input-dark w-full rounded-lg px-4 py-3" placeholder="https://...supabase.co/functions/v1" value="https://jnmtwalmfkcxixiwqbjm.supabase.co/functions/v1">
       </div>
       <button onclick="doLogin()" id="loginBtn" class="btn-primary w-full py-3 rounded-lg font-semibold text-white flex items-center justify-center gap-2">
-        <i data-lucide="log-in" class="w-4 h-4"></i><span>Entrar</span>
+        <i data-lucide="log-in" class="w-4 h-4"></i>
+        <span>Entrar</span>
       </button>
-      <p id="loginError" class="mt-4 text-center text-rose-400 text-sm hidden"></p>
     </div>
   </div>
 </div>
@@ -94,7 +100,7 @@
       </div>
       <div class="flex items-center gap-4">
         <span id="adminName" class="text-sm text-slate-300 hidden sm:block"></span>
-        <button onclick="logout()" class="text-slate-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-slate-700/50">
+        <button onclick="logout()" class="text-slate-400 hover:text-white transition-colors">
           <i data-lucide="log-out" class="w-5 h-5"></i>
         </button>
       </div>
@@ -142,32 +148,30 @@
   <div class="modal-content p-6 fade-in">
     <div class="flex items-center justify-between mb-6">
       <h3 class="text-lg font-bold text-white">Nova Loja</h3>
-      <button onclick="closeNewUnitModal()" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-700/50"><i data-lucide="x" class="w-5 h-5"></i></button>
+      <button onclick="closeNewUnitModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
     </div>
     <form id="newUnitForm" onsubmit="event.preventDefault(); createUnit();">
-      <div class="space-y-4 max-h-[58vh] overflow-y-auto pr-1">
+      <div class="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Nome da Empresa *</label><input type="text" id="fCompany" class="input-dark rounded-lg px-3 py-2.5 text-sm" placeholder="Pet Shop Estrela LTDA" required></div>
-          <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Nome da Unidade *</label><input type="text" id="fUnit" class="input-dark rounded-lg px-3 py-2.5 text-sm" placeholder="Estrela Pet — Rio Vermelho" required></div>
+          <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Nome da Empresa *</label><input type="text" id="fCompany" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm" placeholder="Pet Shop Estrela LTDA" required></div>
+          <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Nome da Unidade *</label><input type="text" id="fUnit" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm" placeholder="Estrela Pet — Rio Vermelho" required></div>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Nome do Dono *</label><input type="text" id="fOwnerName" class="input-dark rounded-lg px-3 py-2.5 text-sm" placeholder="Mariana Souza" required></div>
-          <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Email do Dono *</label><input type="email" id="fOwnerEmail" class="input-dark rounded-lg px-3 py-2.5 text-sm" placeholder="dono@estrelapet.com.br" required></div>
+          <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Nome do Dono *</label><input type="text" id="fOwnerName" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm" placeholder="Mariana Souza" required></div>
+          <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Email do Dono *</label><input type="email" id="fOwnerEmail" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm" placeholder="dono@estrelapet.com.br" required></div>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Telefone</label><input type="text" id="fPhone" class="input-dark rounded-lg px-3 py-2.5 text-sm" placeholder="+5571988888888"></div>
-          <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Cidade</label><input type="text" id="fCity" class="input-dark rounded-lg px-3 py-2.5 text-sm" placeholder="Salvador" value="Salvador"></div>
+          <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Telefone</label><input type="text" id="fPhone" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm" placeholder="+5571988888888"></div>
+          <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Cidade</label><input type="text" id="fCity" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm" placeholder="Salvador" value="Salvador"></div>
         </div>
         <div class="grid grid-cols-2 gap-4">
-          <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Estado</label><input type="text" id="fState" class="input-dark rounded-lg px-3 py-2.5 text-sm" placeholder="BA" value="BA"></div>
+          <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Estado</label><input type="text" id="fState" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm" placeholder="BA" value="BA"></div>
           <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Timezone</label>
-            <select id="fTimezone" class="input-dark rounded-lg px-3 py-2.5 text-sm">
+            <select id="fTimezone" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm">
               <option value="America/Bahia">America/Bahia</option>
               <option value="America/Sao_Paulo">America/Sao_Paulo</option>
               <option value="America/Fortaleza">America/Fortaleza</option>
               <option value="America/Recife">America/Recife</option>
-              <option value="America/Manaus">America/Manaus</option>
-              <option value="America/Cuiaba">America/Cuiaba</option>
             </select>
           </div>
         </div>
@@ -180,7 +184,7 @@
   </div>
 </div>
 
-<!-- MODAL: CREDENCIAIS -->
+<!-- MODAL: CREDENCIAIS GERADAS -->
 <div id="credentialsModal" class="hidden modal-overlay">
   <div class="modal-content p-6 fade-in">
     <div class="text-center mb-6">
@@ -201,136 +205,116 @@
   </div>
 </div>
 
-<!-- MODAL: GERENCIAR LOJA -->
+<!-- MODAL: GERENCIAR LOJA (DETALHES) -->
 <div id="manageUnitModal" class="hidden modal-overlay">
-  <div class="modal-content modal-content-lg p-0 fade-in flex flex-col" style="max-height: 92vh;">
-    <!-- Header fixo -->
-    <div class="sticky top-0 z-10 bg-[#1e293b] border-b border-slate-700 p-5 pb-3 rounded-t-2xl">
-      <div class="flex items-center justify-between mb-3">
-        <div class="min-w-0">
-          <h3 id="manageUnitName" class="text-lg font-bold text-white truncate"></h3>
-          <p id="manageUnitPlan" class="text-xs text-slate-400 mt-0.5"></p>
-        </div>
-        <div class="flex items-center gap-2 shrink-0 ml-3">
-          <button onclick="reloadCurrentUnit()" class="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-700/50" title="Recarregar"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
-          <button onclick="closeManageUnitModal()" class="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-700/50"><i data-lucide="x" class="w-5 h-5"></i></button>
-        </div>
+  <div class="modal-content modal-content-lg p-6 fade-in">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h3 id="manageUnitName" class="text-lg font-bold text-white"></h3>
+        <p id="manageUnitPlan" class="text-xs text-slate-400 mt-0.5"></p>
       </div>
-      <div class="flex gap-1 overflow-x-auto pb-1 scrollbar-hide" style="scrollbar-width: none;">
-        <button class="tab-btn active" data-tab="edit" onclick="switchTab('edit')">Editar Loja</button>
-        <button class="tab-btn" data-tab="company" onclick="switchTab('company')">Dados Cadastrais</button>
-        <button class="tab-btn" data-tab="users" onclick="switchTab('users')">Usuários</button>
-        <button class="tab-btn" data-tab="subscription" onclick="switchTab('subscription')">Assinatura</button>
-        <button class="tab-btn" data-tab="history" onclick="switchTab('history')">Histórico</button>
+      <div class="flex items-center gap-2">
+        <button onclick="deleteCurrentUnit()" class="px-3 py-1.5 rounded-lg border border-rose-600 text-rose-400 hover:bg-rose-600/20 text-xs font-medium flex items-center gap-1.5 transition-colors">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Excluir
+        </button>
+        <button onclick="closeManageUnitModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
     </div>
 
-    <!-- Conteúdo scrollável -->
-    <div class="p-5 pt-4 overflow-y-auto flex-1">
-      <!-- ABA: EDITAR LOJA -->
-      <div id="tab-edit" class="tab-content">
-        <form id="editUnitForm" onsubmit="event.preventDefault(); saveUnitEdit();">
-          <input type="hidden" id="editUnitId">
-          <input type="hidden" id="editCompanyId">
-          <div class="space-y-4">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Nome da Unidade</label><input type="text" id="editName" class="input-dark rounded-lg px-3 py-2.5 text-sm"></div>
-              <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Telefone</label><input type="text" id="editPhone" class="input-dark rounded-lg px-3 py-2.5 text-sm"></div>
-            </div>
-            <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Descrição</label><textarea id="editDescription" class="input-dark rounded-lg px-3 py-2.5 text-sm h-20 resize-none"></textarea></div>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Cor Primária</label><div class="flex items-center gap-2"><input type="color" id="editPrimaryColor" class="w-8 h-8 rounded cursor-pointer border-0 p-0 shrink-0" oninput="document.getElementById('editPrimaryColorHex').value=this.value"><input type="text" id="editPrimaryColorHex" class="input-dark rounded-lg px-3 py-2 text-sm" oninput="document.getElementById('editPrimaryColor').value=this.value"></div></div>
-              <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Cor Secundária</label><div class="flex items-center gap-2"><input type="color" id="editSecondaryColor" class="w-8 h-8 rounded cursor-pointer border-0 p-0 shrink-0" oninput="document.getElementById('editSecondaryColorHex').value=this.value"><input type="text" id="editSecondaryColorHex" class="input-dark rounded-lg px-3 py-2 text-sm" oninput="document.getElementById('editSecondaryColor').value=this.value"></div></div>
-              <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Cor Destaque</label><div class="flex items-center gap-2"><input type="color" id="editAccentColor" class="w-8 h-8 rounded cursor-pointer border-0 p-0 shrink-0" oninput="document.getElementById('editAccentColorHex').value=this.value"><input type="text" id="editAccentColorHex" class="input-dark rounded-lg px-3 py-2 text-sm" oninput="document.getElementById('editAccentColor').value=this.value"></div></div>
-            </div>
-            <div><label class="block text-xs font-medium text-slate-400 mb-1.5">SEO Título</label><input type="text" id="editSeoTitle" class="input-dark rounded-lg px-3 py-2.5 text-sm"></div>
-            <div><label class="block text-xs font-medium text-slate-400 mb-1.5">SEO Descrição</label><textarea id="editSeoDescription" class="input-dark rounded-lg px-3 py-2.5 text-sm h-16 resize-none"></textarea></div>
-            <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Mensagem de Boas-vindas</label><textarea id="editWelcome" class="input-dark rounded-lg px-3 py-2.5 text-sm h-16 resize-none"></textarea></div>
-            <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Texto do Rodapé</label><textarea id="editFooter" class="input-dark rounded-lg px-3 py-2.5 text-sm h-16 resize-none"></textarea></div>
-          </div>
-          <div class="mt-6">
-            <button type="submit" id="btnSaveEdit" class="w-full btn-primary py-2.5 rounded-lg text-white text-sm font-medium flex items-center justify-center gap-2"><i data-lucide="save" class="w-4 h-4"></i> Salvar Alterações</button>
-          </div>
-        </form>
-      </div>
+    <div class="flex gap-2 mb-6 overflow-x-auto pb-1">
+      <button class="tab-btn active" data-tab="edit" onclick="switchTab('edit')">Editar Loja</button>
+      <button class="tab-btn" data-tab="company" onclick="switchTab('company')">Dados Cadastrais</button>
+      <button class="tab-btn" data-tab="users" onclick="switchTab('users')">Usuários</button>
+      <button class="tab-btn" data-tab="subscription" onclick="switchTab('subscription')">Assinatura</button>
+      <button class="tab-btn" data-tab="history" onclick="switchTab('history')">Histórico</button>
+    </div>
 
-      <!-- ABA: DADOS CADASTRAIS -->
-      <div id="tab-company" class="tab-content hidden">
-        <form id="editCompanyForm" onsubmit="event.preventDefault(); saveCompanyEdit();">
-          <div class="space-y-4">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Razão Social</label><input type="text" id="editRazaoSocial" class="input-dark rounded-lg px-3 py-2.5 text-sm"></div>
-              <div><label class="block text-xs font-medium text-slate-400 mb-1.5">CNPJ / CPF</label><input type="text" id="editCnpjCpf" class="input-dark rounded-lg px-3 py-2.5 text-sm"></div>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Email da Empresa</label><input type="email" id="editCompanyEmail" class="input-dark rounded-lg px-3 py-2.5 text-sm"></div>
-              <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Website</label><input type="text" id="editWebsite" class="input-dark rounded-lg px-3 py-2.5 text-sm"></div>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Responsável</label><input type="text" id="editResponsible" class="input-dark rounded-lg px-3 py-2.5 text-sm"></div>
-              <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Telefone do Responsável</label><input type="text" id="editRespPhone" class="input-dark rounded-lg px-3 py-2.5 text-sm"></div>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Cidade</label><input type="text" id="editCity" class="input-dark rounded-lg px-3 py-2.5 text-sm"></div>
-              <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Estado</label><input type="text" id="editState" class="input-dark rounded-lg px-3 py-2.5 text-sm"></div>
-            </div>
+    <!-- TAB: EDITAR LOJA -->
+    <div id="tab-edit" class="tab-content">
+      <form id="editUnitForm" onsubmit="event.preventDefault(); saveUnitEdit();">
+        <input type="hidden" id="editUnitId">
+        <input type="hidden" id="editCompanyId">
+        <div class="space-y-4 max-h-[55vh] overflow-y-auto pr-2">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Nome da Unidade</label><input type="text" id="editName" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm"></div>
+            <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Telefone</label><input type="text" id="editPhone" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm"></div>
           </div>
-          <div class="mt-6">
-            <button type="submit" id="btnSaveCompany" class="w-full btn-primary py-2.5 rounded-lg text-white text-sm font-medium flex items-center justify-center gap-2"><i data-lucide="save" class="w-4 h-4"></i> Salvar Dados Cadastrais</button>
+          <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Descrição</label><textarea id="editDescription" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm h-20 resize-none" placeholder="Descrição que aparece no painel da loja..."></textarea></div>
+          <div class="grid grid-cols-3 gap-4">
+            <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Cor Primária</label><div class="flex items-center gap-2"><input type="color" id="editPrimaryColor" class="w-8 h-8 rounded cursor-pointer border-0 p-0" value="#6366f1" oninput="document.getElementById('editPrimaryColorHex').value=this.value"><input type="text" id="editPrimaryColorHex" class="input-dark w-full rounded-lg px-3 py-2 text-sm" value="#6366f1" onchange="document.getElementById('editPrimaryColor').value=this.value"></div></div>
+            <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Cor Secundária</label><div class="flex items-center gap-2"><input type="color" id="editSecondaryColor" class="w-8 h-8 rounded cursor-pointer border-0 p-0" value="#8b5cf6" oninput="document.getElementById('editSecondaryColorHex').value=this.value"><input type="text" id="editSecondaryColorHex" class="input-dark w-full rounded-lg px-3 py-2 text-sm" value="#8b5cf6" onchange="document.getElementById('editSecondaryColor').value=this.value"></div></div>
+            <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Cor Destaque</label><div class="flex items-center gap-2"><input type="color" id="editAccentColor" class="w-8 h-8 rounded cursor-pointer border-0 p-0" value="#10b981" oninput="document.getElementById('editAccentColorHex').value=this.value"><input type="text" id="editAccentColorHex" class="input-dark w-full rounded-lg px-3 py-2 text-sm" value="#10b981" onchange="document.getElementById('editAccentColor').value=this.value"></div></div>
           </div>
-        </form>
-      </div>
-
-      <!-- ABA: USUÁRIOS -->
-      <div id="tab-users" class="tab-content hidden">
-        <div id="usersLoading" class="py-8 text-center text-slate-500 text-sm"><span class="inline-block w-4 h-4 border-2 border-slate-600 border-t-indigo-400 rounded-full animate-spin mr-2"></span>Carregando usuários...</div>
-        <div id="usersList" class="space-y-3 hidden"></div>
-        <div id="usersEmpty" class="empty-state hidden">
-          <i data-lucide="users" class="w-10 h-10 mx-auto mb-3 text-slate-600"></i>
-          <p class="text-sm">Nenhum usuário vinculado</p>
+          <div><label class="block text-xs font-medium text-slate-400 mb-1.5">SEO Título</label><input type="text" id="editSeoTitle" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm" placeholder="Título da página no Google"></div>
+          <div><label class="block text-xs font-medium text-slate-400 mb-1.5">SEO Descrição</label><textarea id="editSeoDescription" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm h-16 resize-none" placeholder="Descrição para motores de busca..."></textarea></div>
+          <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Mensagem de Boas-vindas</label><textarea id="editWelcome" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm h-16 resize-none" placeholder="Mensagem exibida no painel da loja..."></textarea></div>
+          <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Texto do Rodapé</label><textarea id="editFooter" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm h-16 resize-none" placeholder="Texto do rodapé..."></textarea></div>
         </div>
-      </div>
-
-      <!-- ABA: ASSINATURA -->
-      <div id="tab-subscription" class="tab-content hidden">
-        <div id="subLoading" class="py-8 text-center text-slate-500 text-sm"><span class="inline-block w-4 h-4 border-2 border-slate-600 border-t-indigo-400 rounded-full animate-spin mr-2"></span>Carregando assinatura...</div>
-        <div id="subscriptionContent" class="hidden"></div>
-      </div>
-
-      <!-- ABA: HISTÓRICO -->
-      <div id="tab-history" class="tab-content hidden">
-        <div id="historyLoading" class="py-8 text-center text-slate-500 text-sm"><span class="inline-block w-4 h-4 border-2 border-slate-600 border-t-indigo-400 rounded-full animate-spin mr-2"></span>Carregando histórico...</div>
-        <div id="historyContent" class="space-y-3 hidden"></div>
-        <div id="historyEmpty" class="empty-state hidden">
-          <i data-lucide="history" class="w-10 h-10 mx-auto mb-3 text-slate-600"></i>
-          <p class="text-sm">Nenhum registro de auditoria</p>
+        <div class="mt-6">
+          <button type="submit" id="btnSaveEdit" class="w-full btn-primary py-2.5 rounded-lg text-white text-sm font-medium flex items-center justify-center gap-2"><i data-lucide="save" class="w-4 h-4"></i> Salvar Alterações</button>
         </div>
-      </div>
+      </form>
+    </div>
+
+    <!-- TAB: DADOS CADASTRAIS -->
+    <div id="tab-company" class="tab-content hidden">
+      <form id="editCompanyForm" onsubmit="event.preventDefault(); saveCompanyEdit();">
+        <div class="space-y-4 max-h-[55vh] overflow-y-auto pr-2">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Razão Social</label><input type="text" id="editRazaoSocial" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm"></div>
+            <div><label class="block text-xs font-medium text-slate-400 mb-1.5">CNPJ / CPF</label><input type="text" id="editCnpjCpf" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm" placeholder="00.000.000/0000-00 ou 000.000.000-00"></div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Email da Empresa</label><input type="email" id="editCompanyEmail" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm"></div>
+            <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Website</label><input type="text" id="editWebsite" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm" placeholder="https://..."></div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Responsável</label><input type="text" id="editResponsible" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm"></div>
+            <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Telefone do Responsável</label><input type="text" id="editRespPhone" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm"></div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Cidade</label><input type="text" id="editCity" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm"></div>
+            <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Estado</label><input type="text" id="editState" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm"></div>
+          </div>
+        </div>
+        <div class="mt-6">
+          <button type="submit" class="w-full btn-primary py-2.5 rounded-lg text-white text-sm font-medium flex items-center justify-center gap-2"><i data-lucide="save" class="w-4 h-4"></i> Salvar Dados Cadastrais</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- TAB: USUÁRIOS -->
+    <div id="tab-users" class="tab-content hidden">
+      <div id="usersList" class="space-y-3 max-h-[55vh] overflow-y-auto pr-2"></div>
+    </div>
+
+    <!-- TAB: ASSINATURA -->
+    <div id="tab-subscription" class="tab-content hidden">
+      <div id="subscriptionContent"></div>
+    </div>
+
+    <!-- TAB: HISTÓRICO -->
+    <div id="tab-history" class="tab-content hidden">
+      <div id="historyContent" class="space-y-3 max-h-[55vh] overflow-y-auto pr-2"></div>
     </div>
   </div>
 </div>
 
 <script>
-// ===== ESTADO GLOBAL =====
-const state = {
+// ===================== STATE =====================
+let state = {
   token: localStorage.getItem('pf_admin_token') || null,
-  user: null,
+  user: JSON.parse(localStorage.getItem('pf_admin_user') || 'null'),
   apiUrl: localStorage.getItem('pf_api_url') || 'https://jnmtwalmfkcxixiwqbjm.supabase.co/functions/v1',
   units: [],
-  currentUnitId: null,
-  currentUnitDetail: null,
-  currentTab: 'edit',
-  isLoadingDetail: false
+  currentUnit: null,
+  currentTab: 'edit'
 };
 
-try {
-  state.user = JSON.parse(localStorage.getItem('pf_admin_user') || 'null');
-} catch (e) { state.user = null; }
-
-// ===== INICIALIZAÇÃO =====
+// ===================== INIT =====================
 document.addEventListener('DOMContentLoaded', () => {
   lucide.createIcons();
-  if (state.token && state.user && state.user.is_super_admin === true) {
+  if (state.token && state.user?.is_super_admin) {
     showDashboard();
     loadUnits();
   } else {
@@ -338,21 +322,17 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// ===== LOGIN / LOGOUT =====
+// ===================== AUTH =====================
 async function doLogin() {
   const email = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value;
   const url = document.getElementById('apiUrl').value.trim();
   const btn = document.getElementById('loginBtn');
-  const errEl = document.getElementById('loginError');
 
-  if (!email || !password) {
-    errEl.textContent = 'Preencha email e senha';
-    errEl.classList.remove('hidden');
-    return;
-  }
-  errEl.classList.add('hidden');
-  setBtnLoading(btn, 'Entrando...');
+  if (!email || !password) { toast('Preencha email e senha', 'error'); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="animate-spin inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full"></span> Entrando...';
 
   try {
     const res = await fetch(`${url}/auth-login`, {
@@ -361,40 +341,44 @@ async function doLogin() {
       body: JSON.stringify({ email, password })
     });
     const data = await res.json();
+
     if (!data.success) {
-      errEl.textContent = data.error || 'Email ou senha incorretos';
-      errEl.classList.remove('hidden');
-      resetBtn(btn, '<i data-lucide="log-in" class="w-4 h-4"></i><span>Entrar</span>');
+      toast(data.error || 'Erro ao entrar', 'error');
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="log-in" class="w-4 h-4"></i><span>Entrar</span>';
+      lucide.createIcons();
       return;
     }
+
     state.token = data.data.access_token;
     state.user = data.data.user;
     state.apiUrl = url;
     localStorage.setItem('pf_admin_token', state.token);
     localStorage.setItem('pf_admin_user', JSON.stringify(state.user));
     localStorage.setItem('pf_api_url', url);
+
     toast(`Bem-vindo, ${state.user.name || state.user.email}!`, 'success');
     showDashboard();
     loadUnits();
+
   } catch (err) {
-    console.error('Login error:', err);
-    errEl.textContent = 'Erro de conexão. Verifique a URL da API.';
-    errEl.classList.remove('hidden');
-    resetBtn(btn, '<i data-lucide="log-in" class="w-4 h-4"></i><span>Entrar</span>');
+    toast('Erro de conexão. Verifique a URL da API.', 'error');
+    btn.disabled = false;
+    btn.innerHTML = '<i data-lucide="log-in" class="w-4 h-4"></i><span>Entrar</span>';
+    lucide.createIcons();
   }
 }
 
 function logout() {
   localStorage.removeItem('pf_admin_token');
   localStorage.removeItem('pf_admin_user');
-  localStorage.removeItem('pf_api_url');
   state.token = null;
   state.user = null;
-  state.units = [];
   showLogin();
   toast('Desconectado', 'info');
 }
 
+// ===================== VIEWS =====================
 function showLogin() {
   document.getElementById('loginScreen').classList.remove('hidden');
   document.getElementById('dashboardScreen').classList.add('hidden');
@@ -403,16 +387,12 @@ function showLogin() {
 function showDashboard() {
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('dashboardScreen').classList.remove('hidden');
-  document.getElementById('adminName').textContent = state.user?.name || state.user?.email || 'Admin';
+  document.getElementById('adminName').textContent = state.user?.name || state.user?.email;
 }
 
-// ===== DASHBOARD / LISTA DE LOJAS =====
+// ===================== LOAD UNITS =====================
 async function loadUnits() {
-  if (!state.user?.units) {
-    state.units = [];
-    renderUnits();
-    return;
-  }
+  if (!state.user?.units) return;
   state.units = state.user.units;
   renderUnits();
   updateStats();
@@ -423,53 +403,43 @@ function updateStats() {
   const active = state.units.filter(u => u.status === 'ACTIVE').length;
   document.getElementById('statTotal').textContent = total;
   document.getElementById('statActive').textContent = active;
-  document.getElementById('statInactive').textContent = Math.max(0, total - active);
+  document.getElementById('statInactive').textContent = total - active;
 }
 
 function renderUnits() {
   const grid = document.getElementById('unitsGrid');
   if (state.units.length === 0) {
-    grid.innerHTML = `
-      <div class="col-span-full text-center py-16 text-slate-500 fade-in">
-        <i data-lucide="store" class="w-12 h-12 mx-auto mb-3 opacity-30"></i>
-        <p class="text-sm">Nenhuma loja cadastrada ainda</p>
-        <p class="text-xs mt-1">Clique em "Nova Loja" para começar</p>
-      </div>`;
+    grid.innerHTML = `<div class="col-span-full text-center py-16 text-slate-500"><i data-lucide="store" class="w-12 h-12 mx-auto mb-3 opacity-30"></i><p class="text-sm">Nenhuma loja cadastrada ainda</p><p class="text-xs mt-1">Clique em "Nova Loja" para começar</p></div>`;
     lucide.createIcons();
     return;
   }
-  grid.innerHTML = state.units.map((u, i) => `
-    <div class="card card-hover p-5 fade-in" style="animation-delay:${i * 0.05}s">
+
+  grid.innerHTML = state.units.map(u => `
+    <div class="card p-5 fade-in">
       <div class="flex items-start justify-between mb-3">
-        <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0">
-          <i data-lucide="store" class="w-5 h-5 text-white"></i>
-        </div>
+        <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0"><i data-lucide="store" class="w-5 h-5 text-white"></i></div>
         <span class="badge ${u.status === 'ACTIVE' ? 'badge-active' : 'badge-inactive'}">${u.status === 'ACTIVE' ? 'Ativa' : 'Inativa'}</span>
       </div>
-      <h3 class="font-semibold text-white text-sm mb-1 truncate" title="${esc(u.name)}">${esc(u.name)}</h3>
-      <p class="text-xs text-slate-400 mb-3">${esc(u.city || '')}${u.state ? ', ' + esc(u.state) : ''}</p>
+      <h3 class="font-semibold text-white text-sm mb-1">${u.name}</h3>
+      <p class="text-xs text-slate-400 mb-3">${u.city || ''}${u.state ? ', ' + u.state : ''}</p>
       <div class="space-y-1.5 text-xs text-slate-400 mb-4">
-        <div class="flex items-center gap-2"><i data-lucide="phone" class="w-3 h-3 shrink-0"></i> <span class="truncate">${esc(u.phone || '—')}</span></div>
-        <div class="flex items-center gap-2"><i data-lucide="globe" class="w-3 h-3 shrink-0"></i> <span class="truncate">${esc(u.timezone || 'America/Bahia')}</span></div>
+        <div class="flex items-center gap-2"><i data-lucide="phone" class="w-3 h-3"></i> ${u.phone || '-'}</div>
+        <div class="flex items-center gap-2"><i data-lucide="globe" class="w-3 h-3"></i> ${u.timezone || 'America/Bahia'}</div>
       </div>
-      <div class="pt-3 border-t border-slate-700/50 flex items-center justify-between gap-2">
-        <span class="text-[10px] text-slate-500 font-mono truncate" title="${esc(u.api_key)}">${esc((u.api_key || '').slice(0, 20))}...</span>
-        <button onclick="manageUnit('${u.id}')" class="text-emerald-400 hover:text-emerald-300 text-xs flex items-center gap-1 font-medium shrink-0">
-          <i data-lucide="settings" class="w-3 h-3"></i> Gerenciar
-        </button>
+      <div class="pt-3 border-t border-slate-700/50 flex items-center justify-between">
+        <span class="text-[10px] text-slate-500 font-mono truncate max-w-[140px]" title="${u.api_key}">${u.api_key}</span>
+        <button onclick="manageUnit('${u.id}')" class="text-emerald-400 hover:text-emerald-300 text-xs flex items-center gap-1 font-medium"><i data-lucide="settings" class="w-3 h-3"></i> Gerenciar</button>
       </div>
     </div>
   `).join('');
   lucide.createIcons();
 }
 
-// ===== NOVA LOJA =====
+// ===================== CREATE UNIT =====================
 function openNewUnitModal() {
   document.getElementById('newUnitModal').classList.remove('hidden');
   document.getElementById('newUnitForm').reset();
   document.getElementById('fTimezone').value = 'America/Bahia';
-  document.getElementById('fCity').value = 'Salvador';
-  document.getElementById('fState').value = 'BA';
 }
 
 function closeNewUnitModal() {
@@ -478,7 +448,8 @@ function closeNewUnitModal() {
 
 async function createUnit() {
   const btn = document.getElementById('btnCreate');
-  setBtnLoading(btn, 'Criando...');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="animate-spin inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full"></span> Criando...';
 
   const payload = {
     company_name: document.getElementById('fCompany').value.trim(),
@@ -494,32 +465,40 @@ async function createUnit() {
   try {
     const res = await fetch(`${state.apiUrl}/super-admin-create-unit`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.token}` },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${state.token}`
+      },
       body: JSON.stringify(payload)
     });
     const data = await res.json();
+
     if (!data.success) {
       toast(data.error || 'Erro ao criar loja', 'error');
-      resetBtn(btn, '<i data-lucide="plus" class="w-4 h-4"></i> Criar Loja');
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="plus" class="w-4 h-4"></i> Criar Loja';
+      lucide.createIcons();
       return;
     }
-    // Adiciona na lista local
+
     state.units.unshift(data.data.unit);
     renderUnits();
     updateStats();
     closeNewUnitModal();
 
-    document.getElementById('credUnitName').textContent = data.data.unit.name || '';
-    document.getElementById('credApiKey').textContent = data.data.unit.api_key || '';
-    document.getElementById('credEmail').textContent = data.data.owner.email || '';
-    document.getElementById('credPassword').textContent = data.data.owner.temp_password || '';
+    document.getElementById('credUnitName').textContent = data.data.unit.name;
+    document.getElementById('credApiKey').textContent = data.data.unit.api_key;
+    document.getElementById('credEmail').textContent = data.data.owner.email;
+    document.getElementById('credPassword').textContent = data.data.owner.temp_password;
     document.getElementById('credentialsModal').classList.remove('hidden');
     lucide.createIcons();
     toast('Loja criada com sucesso!', 'success');
+
   } catch (err) {
-    console.error('Create unit error:', err);
     toast('Erro de conexão ao criar loja', 'error');
-    resetBtn(btn, '<i data-lucide="plus" class="w-4 h-4"></i> Criar Loja');
+    btn.disabled = false;
+    btn.innerHTML = '<i data-lucide="plus" class="w-4 h-4"></i> Criar Loja';
+    lucide.createIcons();
   }
 }
 
@@ -527,250 +506,193 @@ function closeCredentialsModal() {
   document.getElementById('credentialsModal').classList.add('hidden');
 }
 
-// ===== GERENCIAR LOJA =====
+// ===================== MANAGE UNIT =====================
 async function manageUnit(unitId) {
-  state.currentUnitId = unitId;
-  state.currentUnitDetail = null;
-  state.currentTab = 'edit';
+  state.currentUnit = state.units.find(u => u.id === unitId);
+  if (!state.currentUnit) return;
 
-  const unit = state.units.find(u => u.id === unitId);
-  if (!unit) {
-    toast('Unidade não encontrada na lista', 'error');
-    return;
-  }
-
-  // Mostra modal imediatamente com dados básicos
-  document.getElementById('manageUnitName').textContent = unit.name || 'Unidade';
-  document.getElementById('manageUnitPlan').textContent = 'Carregando detalhes...';
-  document.getElementById('manageUnitModal').classList.remove('hidden');
-
-  // Reseta tabs
-  switchTab('edit', false);
-  resetTabContents();
-
-  // Limpa formulários
+  // Limpa formulários e abas antes de carregar
   document.getElementById('editUnitForm').reset();
   document.getElementById('editCompanyForm').reset();
-  document.getElementById('editUnitId').value = unitId;
+  document.getElementById('subscriptionContent').innerHTML = '';
+  document.getElementById('usersList').innerHTML = '';
+  document.getElementById('historyContent').innerHTML = '';
 
-  state.isLoadingDetail = true;
+  document.getElementById('manageUnitName').textContent = state.currentUnit.name;
+  document.getElementById('manageUnitPlan').textContent = `Plano: Carregando... | Status: ${state.currentUnit.status || 'ACTIVE'}`;
+  document.getElementById('manageUnitModal').classList.remove('hidden');
+  switchTab('edit');
 
+  // Carregar detalhes completos
   try {
-    const res = await fetch(`${state.apiUrl}/super-admin-unit-detail?id=${encodeURIComponent(unitId)}`, {
+    const res = await fetch(`${state.apiUrl}/super-admin-unit-detail?id=${unitId}`, {
       headers: { 'Authorization': `Bearer ${state.token}` }
     });
     const data = await res.json();
-    console.log('Unit detail response:', data);
-
-    if (!data.success) {
-      toast(data.error || 'Erro ao carregar detalhes', 'error');
-      document.getElementById('manageUnitPlan').textContent = 'Erro ao carregar';
-      state.isLoadingDetail = false;
-      return;
+    if (data.success && data.data) {
+      state.currentUnitDetail = data.data;
+      populateEditForm(data.data);
+      renderSubscription(data.data.subscription);
+      renderUsers(data.data.users);
+      renderHistory(data.data.audit_logs);
+      // Atualiza header com plano real
+      const planName = data.data.subscription?.plans?.name || 'Sem plano';
+      const subStatus = data.data.subscription?.status || 'ACTIVE';
+      const statusMap = { ACTIVE: 'Ativa', RENEWAL_NEAR: 'Renovação Próxima', PAYMENT_PENDING: 'Pagamento Pendente', OVERDUE: 'Vencida', CANCELLED: 'Cancelada', SUSPENDED: 'Suspensa' };
+      document.getElementById('manageUnitPlan').textContent = `Plano: ${planName} | ${statusMap[subStatus] || subStatus}`;
+    } else {
+      toast(data.error || 'Erro ao carregar detalhes da loja', 'error');
+      document.getElementById('manageUnitPlan').textContent = 'Erro ao carregar dados';
     }
-
-    state.currentUnitDetail = data.data || {};
-    const detail = state.currentUnitDetail;
-
-    // Atualiza header
-    const planName = detail.subscription?.plans?.name || detail.subscription?.plan?.name || 'Sem plano';
-    const subStatus = detail.subscription?.status || 'ACTIVE';
-    const statusMap = { ACTIVE: 'Ativa', RENEWAL_NEAR: 'Renovação Próxima', PAYMENT_PENDING: 'Pagamento Pendente', OVERDUE: 'Vencida', CANCELLED: 'Cancelada', SUSPENDED: 'Suspensa' };
-    document.getElementById('manageUnitPlan').textContent = `Plano: ${planName} | ${statusMap[subStatus] || subStatus}`;
-
-    // Preenche formulários
-    populateEditForm(detail);
-
-    // Renderiza abas
-    renderUsers(detail.users);
-    renderSubscription(detail.subscription);
-    renderHistory(detail.audit_logs);
-
   } catch (err) {
     console.error('Manage unit error:', err);
-    toast('Erro de conexão ao carregar detalhes', 'error');
+    toast('Erro ao carregar detalhes da loja', 'error');
     document.getElementById('manageUnitPlan').textContent = 'Erro de conexão';
-  } finally {
-    state.isLoadingDetail = false;
-  }
-}
-
-function reloadCurrentUnit() {
-  if (state.currentUnitId) {
-    manageUnit(state.currentUnitId);
-    toast('Recarregando...', 'info');
   }
 }
 
 function closeManageUnitModal() {
   document.getElementById('manageUnitModal').classList.add('hidden');
-  state.currentUnitId = null;
+  state.currentUnit = null;
   state.currentUnitDetail = null;
 }
 
-function resetTabContents() {
-  // Reseta estados visuais das abas
-  document.getElementById('usersLoading').classList.remove('hidden');
-  document.getElementById('usersList').classList.add('hidden');
-  document.getElementById('usersEmpty').classList.add('hidden');
-
-  document.getElementById('subLoading').classList.remove('hidden');
-  document.getElementById('subscriptionContent').classList.add('hidden');
-
-  document.getElementById('historyLoading').classList.remove('hidden');
-  document.getElementById('historyContent').classList.add('hidden');
-  document.getElementById('historyEmpty').classList.add('hidden');
-}
-
-function switchTab(tab, loadData = true) {
+function switchTab(tab) {
   state.currentTab = tab;
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
-  const btn = document.querySelector(`.tab-btn[data-tab="${tab}"]`);
-  if (btn) btn.classList.add('active');
-  const content = document.getElementById(`tab-${tab}`);
-  if (content) content.classList.remove('hidden');
-
-  // Se já temos dados carregados, re-renderiza a aba ativa
-  if (loadData && state.currentUnitDetail) {
-    if (tab === 'users') renderUsers(state.currentUnitDetail.users);
-    if (tab === 'subscription') renderSubscription(state.currentUnitDetail.subscription);
-    if (tab === 'history') renderHistory(state.currentUnitDetail.audit_logs);
-  }
+  document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add('active');
+  document.getElementById(`tab-${tab}`).classList.remove('hidden');
   lucide.createIcons();
 }
 
-// ===== POPULATE FORMS =====
 function populateEditForm(data) {
-  const unit = data?.unit || {};
-  const company = unit?.companies || unit?.company || {};
+  if (!data) return;
+  const unit = data.unit || {};
+  const company = unit.companies || unit.company || {};
 
   document.getElementById('editUnitId').value = unit.id || '';
-  document.getElementById('editCompanyId').value = unit.company_id || company.id || '';
+  document.getElementById('editCompanyId').value = unit.company_id || '';
+  document.getElementById('editName').value = unit.name || '';
+  document.getElementById('editPhone').value = unit.phone || '';
+  document.getElementById('editDescription').value = unit.description || '';
+  document.getElementById('editPrimaryColor').value = unit.primary_color || '#6366f1';
+  document.getElementById('editPrimaryColorHex').value = unit.primary_color || '#6366f1';
+  document.getElementById('editSecondaryColor').value = unit.secondary_color || '#8b5cf6';
+  document.getElementById('editSecondaryColorHex').value = unit.secondary_color || '#8b5cf6';
+  document.getElementById('editAccentColor').value = unit.accent_color || '#10b981';
+  document.getElementById('editAccentColorHex').value = unit.accent_color || '#10b981';
+  document.getElementById('editSeoTitle').value = unit.seo_title || '';
+  document.getElementById('editSeoDescription').value = unit.seo_description || '';
+  document.getElementById('editWelcome').value = unit.welcome_message || '';
+  document.getElementById('editFooter').value = unit.footer_text || '';
 
-  // Unit fields
-  setVal('editName', unit.name);
-  setVal('editPhone', unit.phone);
-  setVal('editDescription', unit.description);
-  setVal('editSeoTitle', unit.seo_title);
-  setVal('editSeoDescription', unit.seo_description);
-  setVal('editWelcome', unit.welcome_message);
-  setVal('editFooter', unit.footer_text);
-
-  // Colors
-  const pColor = unit.primary_color || '#6366f1';
-  const sColor = unit.secondary_color || '#8b5cf6';
-  const aColor = unit.accent_color || '#10b981';
-  setVal('editPrimaryColor', pColor);
-  setVal('editPrimaryColorHex', pColor);
-  setVal('editSecondaryColor', sColor);
-  setVal('editSecondaryColorHex', sColor);
-  setVal('editAccentColor', aColor);
-  setVal('editAccentColorHex', aColor);
-
-  // Company fields
-  setVal('editRazaoSocial', company.razao_social);
-  setVal('editCnpjCpf', company.cnpj_cpf);
-  setVal('editCompanyEmail', company.email);
-  setVal('editWebsite', company.website);
-  setVal('editResponsible', company.responsible_name);
-  setVal('editRespPhone', company.responsible_phone);
-  setVal('editCity', unit.city);
-  setVal('editState', unit.state);
+  // Company data
+  document.getElementById('editRazaoSocial').value = company.razao_social || '';
+  document.getElementById('editCnpjCpf').value = company.cnpj_cpf || '';
+  document.getElementById('editCompanyEmail').value = company.email || '';
+  document.getElementById('editWebsite').value = company.website || '';
+  document.getElementById('editResponsible').value = company.responsible_name || '';
+  document.getElementById('editRespPhone').value = company.responsible_phone || '';
+  document.getElementById('editCity').value = unit.city || '';
+  document.getElementById('editState').value = unit.state || '';
 }
 
-function setVal(id, value) {
-  const el = document.getElementById(id);
-  if (el) el.value = value || '';
-}
-
-// ===== SALVAR =====
+// ===================== SAVE EDIT =====================
 async function saveUnitEdit() {
   const btn = document.getElementById('btnSaveEdit');
-  setBtnLoading(btn, 'Salvando...');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="animate-spin inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full"></span> Salvando...';
 
   const unitId = document.getElementById('editUnitId').value;
   const companyId = document.getElementById('editCompanyId').value;
-  if (!unitId || !companyId) {
-    toast('Dados da unidade incompletos. Recarregue a página.', 'error');
-    resetBtn(btn, '<i data-lucide="save" class="w-4 h-4"></i> Salvar Alterações');
-    return;
-  }
 
   const unitData = {};
-  const fields = {
-    name: v('editName'),
-    phone: v('editPhone'),
-    description: v('editDescription'),
-    primary_color: v('editPrimaryColor'),
-    secondary_color: v('editSecondaryColor'),
-    accent_color: v('editAccentColor'),
-    seo_title: v('editSeoTitle'),
-    seo_description: v('editSeoDescription'),
-    welcome_message: v('editWelcome'),
-    footer_text: v('editFooter')
-  };
-  for (const [key, val] of Object.entries(fields)) {
-    if (val !== '' && val !== null && val !== undefined) unitData[key] = val;
-  }
+  const name = document.getElementById('editName').value.trim();
+  const phone = document.getElementById('editPhone').value.trim();
+  const description = document.getElementById('editDescription').value.trim();
+  const primaryColor = document.getElementById('editPrimaryColor').value;
+  const secondaryColor = document.getElementById('editSecondaryColor').value;
+  const accentColor = document.getElementById('editAccentColor').value;
+  const seoTitle = document.getElementById('editSeoTitle').value.trim();
+  const seoDesc = document.getElementById('editSeoDescription').value.trim();
+  const welcome = document.getElementById('editWelcome').value.trim();
+  const footer = document.getElementById('editFooter').value.trim();
+
+  if (name) unitData.name = name;
+  if (phone) unitData.phone = phone;
+  if (description) unitData.description = description;
+  if (primaryColor) unitData.primary_color = primaryColor;
+  if (secondaryColor) unitData.secondary_color = secondaryColor;
+  if (accentColor) unitData.accent_color = accentColor;
+  if (seoTitle) unitData.seo_title = seoTitle;
+  if (seoDesc) unitData.seo_description = seoDesc;
+  if (welcome) unitData.welcome_message = welcome;
+  if (footer) unitData.footer_text = footer;
 
   try {
     const res = await fetch(`${state.apiUrl}/super-admin-unit-update`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.token}` },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${state.token}`
+      },
       body: JSON.stringify({ unit_id: unitId, company_id: companyId, unit_data: unitData })
     });
     const data = await res.json();
+
     if (!data.success) {
       toast(data.error || 'Erro ao salvar', 'error');
     } else {
       toast('Alterações salvas com sucesso!', 'success');
-      // Atualiza lista local
+      // Atualizar local
       const idx = state.units.findIndex(u => u.id === unitId);
       if (idx >= 0) {
         Object.assign(state.units[idx], unitData);
         renderUnits();
       }
-      // Atualiza header do modal
-      if (unitData.name) document.getElementById('manageUnitName').textContent = unitData.name;
     }
   } catch (err) {
-    console.error('Save error:', err);
     toast('Erro de conexão ao salvar', 'error');
   }
-  resetBtn(btn, '<i data-lucide="save" class="w-4 h-4"></i> Salvar Alterações');
+
+  btn.disabled = false;
+  btn.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i> Salvar Alterações';
+  lucide.createIcons();
 }
 
 async function saveCompanyEdit() {
-  const btn = document.getElementById('btnSaveCompany');
-  setBtnLoading(btn, 'Salvando...');
-
   const unitId = document.getElementById('editUnitId').value;
   const companyId = document.getElementById('editCompanyId').value;
 
   const companyData = {};
-  const cFields = {
-    razao_social: v('editRazaoSocial'),
-    cnpj_cpf: v('editCnpjCpf'),
-    email: v('editCompanyEmail'),
-    website: v('editWebsite'),
-    responsible_name: v('editResponsible'),
-    responsible_phone: v('editRespPhone')
-  };
-  for (const [key, val] of Object.entries(cFields)) {
-    if (val !== '' && val !== null && val !== undefined) companyData[key] = val;
-  }
+  const razao = document.getElementById('editRazaoSocial').value.trim();
+  const cnpj = document.getElementById('editCnpjCpf').value.trim();
+  const email = document.getElementById('editCompanyEmail').value.trim();
+  const website = document.getElementById('editWebsite').value.trim();
+  const resp = document.getElementById('editResponsible').value.trim();
+  const respPhone = document.getElementById('editRespPhone').value.trim();
+  const city = document.getElementById('editCity').value.trim();
+  const estado = document.getElementById('editState').value.trim();
+
+  if (razao) companyData.razao_social = razao;
+  if (cnpj) companyData.cnpj_cpf = cnpj;
+  if (email) companyData.email = email;
+  if (website) companyData.website = website;
+  if (resp) companyData.responsible_name = resp;
+  if (respPhone) companyData.responsible_phone = respPhone;
 
   const unitData = {};
-  const city = v('editCity');
-  const estado = v('editState');
   if (city) unitData.city = city;
   if (estado) unitData.state = estado;
 
   try {
     const res = await fetch(`${state.apiUrl}/super-admin-unit-update`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.token}` },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${state.token}`
+      },
       body: JSON.stringify({ unit_id: unitId, company_id: companyId, company_data: companyData, unit_data: unitData })
     });
     const data = await res.json();
@@ -778,168 +700,83 @@ async function saveCompanyEdit() {
       toast(data.error || 'Erro ao salvar dados cadastrais', 'error');
     } else {
       toast('Dados cadastrais salvos com sucesso!', 'success');
-      // Atualiza lista local
-      const idx = state.units.findIndex(u => u.id === unitId);
-      if (idx >= 0) {
-        if (unitData.city) state.units[idx].city = unitData.city;
-        if (unitData.state) state.units[idx].state = unitData.state;
-        renderUnits();
-      }
     }
   } catch (err) {
-    console.error('Save company error:', err);
     toast('Erro de conexão', 'error');
   }
-  resetBtn(btn, '<i data-lucide="save" class="w-4 h-4"></i> Salvar Dados Cadastrais');
 }
 
-function v(id) {
-  const el = document.getElementById(id);
-  return el ? (el.value || '').trim() : '';
-}
-
-// ===== RENDER: ASSINATURA =====
+// ===================== RENDER SUBSCRIPTION =====================
 function renderSubscription(sub) {
-  const loading = document.getElementById('subLoading');
-  const content = document.getElementById('subscriptionContent');
-  loading.classList.add('hidden');
-  content.classList.remove('hidden');
-
+  const container = document.getElementById('subscriptionContent');
   if (!sub) {
-    content.innerHTML = `
-      <div class="empty-state">
-        <div class="w-14 h-14 rounded-full bg-slate-700/40 flex items-center justify-center mx-auto mb-4">
+    container.innerHTML = `
+      <div class="text-center py-12">
+        <div class="w-14 h-14 rounded-full bg-slate-700/50 flex items-center justify-center mx-auto mb-4">
           <i data-lucide="credit-card" class="w-6 h-6 text-slate-500"></i>
         </div>
-        <p class="text-sm text-slate-400">Sem assinatura ativa</p>
-        <p class="text-xs text-slate-500 mt-1 max-w-xs mx-auto">Esta loja ainda não possui um plano contratado. Crie uma assinatura no banco de dados.</p>
+        <p class="text-slate-400 text-sm">Sem assinatura ativa</p>
+        <p class="text-slate-500 text-xs mt-1">Esta loja ainda não possui um plano contratado.</p>
       </div>`;
     lucide.createIcons();
     return;
   }
 
-  // Normaliza dados do plano
-  const plan = sub.plans || sub.plan || {};
-  const planName = plan.name || 'Sem plano';
-  const planPrice = plan.price || sub.amount || 0;
+  const plan = sub.plans || sub.plan || { name: 'Sem plano', price: 0 };
+  const endDate = sub.end_date || sub.renewal_date;
+  const daysLeft = endDate ? Math.max(0, Math.ceil((new Date(endDate) - new Date()) / (1000 * 60 * 60 * 24))) : 0;
+  const statusClass = sub.status === 'ACTIVE' ? 'badge-active' : sub.status === 'RENEWAL_NEAR' ? 'badge-renewal' : 'badge-inactive';
+  const statusText = { ACTIVE: 'Ativa', RENEWAL_NEAR: 'Renovação Próxima', PAYMENT_PENDING: 'Pagamento Pendente', OVERDUE: 'Vencida', CANCELLED: 'Cancelada', SUSPENDED: 'Suspensa' }[sub.status] || sub.status;
 
-  // Calcula dias restantes
-  let daysLeft = 0;
-  let isOverdue = false;
-  const renewalDate = sub.renewal_date || sub.end_date;
-  if (renewalDate) {
-    const end = new Date(renewalDate);
-    const now = new Date();
-    // Zera horas para comparar apenas datas
-    end.setHours(0,0,0,0);
-    now.setHours(0,0,0,0);
-    const diffMs = end - now;
-    daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-    if (daysLeft < 0) { daysLeft = 0; isOverdue = true; }
-  }
-
-  const statusClass = isOverdue ? 'badge-inactive' : sub.status === 'ACTIVE' ? 'badge-active' : sub.status === 'RENEWAL_NEAR' ? 'badge-renewal' : sub.status === 'PAYMENT_PENDING' ? 'badge-pending' : 'badge-inactive';
-  const statusMap = { ACTIVE: 'Ativa', RENEWAL_NEAR: 'Renovação Próxima', PAYMENT_PENDING: 'Pagamento Pendente', OVERDUE: 'Vencida', CANCELLED: 'Cancelada', SUSPENDED: 'Suspensa' };
-  const statusText = statusMap[sub.status] || sub.status || 'Desconhecido';
-  const cycleText = { MONTHLY: 'mês', QUARTERLY: 'trimestre', YEARLY: 'ano' }[sub.billing_cycle] || sub.billing_cycle || 'mês';
-
-  content.innerHTML = `
-    <div class="space-y-4 fade-in">
-      <div class="card p-5 text-center">
-        <p class="text-xs text-slate-400 mb-2 uppercase tracking-wider">Plano Atual</p>
-        <h4 class="text-2xl font-bold text-white">${esc(planName)}</h4>
-        <div class="mt-3 flex items-center justify-center gap-2">
-          <span class="badge ${statusClass}">${statusText}</span>
-          ${sub.auto_renew ? '<span class="badge badge-active">Auto-renovação</span>' : '<span class="badge badge-inactive">Manual</span>'}
-        </div>
+  container.innerHTML = `
+    <div class="space-y-4">
+      <div class="card p-4 text-center">
+        <p class="text-xs text-slate-400 mb-2">Plano Atual</p>
+        <h4 class="text-xl font-bold text-white">${plan.name}</h4>
+        <span class="badge ${statusClass} mt-2 inline-block">${statusText}</span>
       </div>
-
-      <div class="grid grid-cols-2 gap-3">
-        <div class="card p-4">
-          <p class="text-xs text-slate-400 mb-1">Início</p>
-          <p class="text-white font-medium text-sm">${sub.start_date ? fmtDate(sub.start_date) : '—'}</p>
-        </div>
-        <div class="card p-4">
-          <p class="text-xs text-slate-400 mb-1">Próxima Renovação</p>
-          <p class="text-white font-medium text-sm">${renewalDate ? fmtDate(renewalDate) : '—'}</p>
-        </div>
-        <div class="card p-4">
-          <p class="text-xs text-slate-400 mb-1">Valor</p>
-          <p class="text-white font-medium text-sm">R$ ${parseFloat(sub.amount || planPrice || 0).toFixed(2).replace('.', ',')} <span class="text-slate-500 text-xs">/ ${cycleText}</span></p>
-        </div>
-        <div class="card p-4">
-          <p class="text-xs text-slate-400 mb-1">Dias Restantes</p>
-          <p class="text-3xl font-bold ${isOverdue ? 'text-rose-400' : daysLeft <= 7 ? 'text-amber-400' : 'text-emerald-400'}">${daysLeft}</p>
-        </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div class="card p-4"><p class="text-xs text-slate-400 mb-1">Início</p><p class="text-white font-medium text-sm">${sub.start_date ? new Date(sub.start_date).toLocaleDateString('pt-BR') : '-'}</p></div>
+        <div class="card p-4"><p class="text-xs text-slate-400 mb-1">Renovação</p><p class="text-white font-medium text-sm">${sub.renewal_date ? new Date(sub.renewal_date).toLocaleDateString('pt-BR') : '-'}</p></div>
+        <div class="card p-4"><p class="text-xs text-slate-400 mb-1">Valor</p><p class="text-white font-medium text-sm">R$ ${parseFloat(sub.amount || 0).toFixed(2)} / ${sub.billing_cycle === 'MONTHLY' ? 'mês' : sub.billing_cycle === 'YEARLY' ? 'ano' : 'trimestre'}</p></div>
+        <div class="card p-4"><p class="text-xs text-slate-400 mb-1">Dias Restantes</p><p class="text-${daysLeft <= 7 ? 'amber' : 'emerald'}-400 font-bold text-lg">${daysLeft}</p></div>
       </div>
-
-      ${isOverdue ? `
-      <div class="bg-rose-500/10 border border-rose-500/30 rounded-lg p-4 flex items-start gap-3">
-        <i data-lucide="alert-circle" class="w-5 h-5 text-rose-400 shrink-0 mt-0.5"></i>
+      ${daysLeft <= 7 ? `
+      <div class="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex items-center gap-3">
+        <i data-lucide="clock" class="w-5 h-5 text-amber-400 shrink-0"></i>
         <div>
-          <p class="text-sm text-rose-300 font-semibold">Assinatura Vencida</p>
-          <p class="text-xs text-rose-400 mt-0.5">A assinatura expirou. O acesso da loja pode ser suspenso.</p>
-        </div>
-      </div>` : daysLeft <= 7 ? `
-      <div class="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 flex items-start gap-3">
-        <i data-lucide="clock" class="w-5 h-5 text-amber-400 shrink-0 mt-0.5"></i>
-        <div>
-          <p class="text-sm text-amber-300 font-semibold">Atenção</p>
-          <p class="text-xs text-amber-400 mt-0.5">${daysLeft === 0 ? 'A assinatura vence hoje.' : daysLeft === 1 ? 'A assinatura vence amanhã.' : `Faltam ${daysLeft} dias para a renovação.`}</p>
+          <p class="text-sm text-amber-300 font-medium">Atenção</p>
+          <p class="text-xs text-amber-400">${daysLeft === 0 ? 'A assinatura vence hoje.' : daysLeft === 1 ? 'A assinatura vence amanhã.' : `A assinatura será renovada em ${daysLeft} dias.`}</p>
         </div>
       </div>` : ''}
-
-      <div class="card p-4">
-        <p class="text-xs text-slate-400 mb-2 uppercase tracking-wider">Detalhes do Plano</p>
-        <div class="space-y-2 text-sm">
-          <div class="flex justify-between"><span class="text-slate-400">Método de Pagamento</span><span class="text-white">${esc(sub.payment_method || '—')}</span></div>
-          <div class="flex justify-between"><span class="text-slate-400">Status do Pagamento</span><span class="text-white">${esc(sub.payment_status || '—')}</span></div>
-          <div class="flex justify-between"><span class="text-slate-400">Ciclo</span><span class="text-white capitalize">${esc(sub.billing_cycle || 'Mensal').toLowerCase()}</span></div>
-        </div>
-      </div>
     </div>
   `;
   lucide.createIcons();
 }
 
-// ===== RENDER: USUÁRIOS =====
+// ===================== RENDER USERS =====================
 function renderUsers(users) {
-  const loading = document.getElementById('usersLoading');
-  const list = document.getElementById('usersList');
-  const empty = document.getElementById('usersEmpty');
-  loading.classList.add('hidden');
-
+  const container = document.getElementById('usersList');
   if (!users || !Array.isArray(users) || users.length === 0) {
-    list.classList.add('hidden');
-    empty.classList.remove('hidden');
-    lucide.createIcons();
+    container.innerHTML = '<p class="text-slate-500 text-sm text-center py-8">Nenhum usuário vinculado a esta loja.</p>';
     return;
   }
 
-  list.classList.remove('hidden');
-  empty.classList.add('hidden');
-
-  list.innerHTML = users.map(u => {
-    const userData = u.users || u.user || {};
-    const name = userData.name || userData.email || 'Usuário';
-    const email = userData.email || '';
-    const initial = (name || 'U').charAt(0).toUpperCase();
-    const roleClass = u.role === 'SUPER_ADMIN' ? 'text-purple-400' : u.role === 'UNIT_ADMIN' ? 'text-emerald-400' : 'text-slate-400';
-    const roleLabel = u.role === 'SUPER_ADMIN' ? 'Super Admin' : u.role === 'UNIT_ADMIN' ? 'Admin da Loja' : u.role === 'ATTENDANT' ? 'Atendente' : u.role === 'PROFESSIONAL' ? 'Profissional' : (u.role || 'Usuário');
-
+  container.innerHTML = users.map(u => {
+    const userData = u.users || u.user || u || {};
     return `
-      <div class="card p-4 flex items-center justify-between gap-3 fade-in">
-        <div class="flex items-center gap-3 min-w-0">
-          <div class="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400 font-bold text-sm shrink-0">${initial}</div>
-          <div class="min-w-0">
-            <p class="text-sm font-medium text-white truncate">${esc(name)}</p>
-            <p class="text-xs text-slate-400 truncate">${esc(email)}</p>
-            <span class="text-[10px] uppercase tracking-wider ${roleClass}">${roleLabel}</span>
+      <div class="card p-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400 font-semibold text-sm">${(userData.name || userData.email || 'U').charAt(0).toUpperCase()}</div>
+          <div>
+            <p class="text-sm font-medium text-white">${userData.name || userData.email || 'Usuário'}</p>
+            <p class="text-xs text-slate-400">${userData.email || ''}</p>
+            <span class="text-[10px] uppercase tracking-wider ${u.role === 'UNIT_ADMIN' ? 'text-emerald-400' : 'text-slate-400'}">${u.role || 'USER'}</span>
           </div>
         </div>
-        <div class="flex items-center gap-2 shrink-0">
-          <button onclick="resetUserPassword('${u.user_id || u.id}', '${esc(email)}')" class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs transition-colors">Senha</button>
-          <button onclick="toggleUserBlock('${u.user_id || u.id}', ${u.is_active === true})" class="px-3 py-1.5 rounded-lg ${u.is_active ? 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 border border-rose-500/30' : 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/30'} text-xs transition-colors">${u.is_active ? 'Bloquear' : 'Desbloquear'}</button>
+        <div class="flex items-center gap-2">
+          <button onclick="resetUserPassword('${u.user_id}', '${userData.email}')" class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs transition-colors" title="Redefinir senha">Redefinir Senha</button>
+          <button onclick="toggleUserBlock('${u.user_id}', ${u.is_active})" class="px-3 py-1.5 rounded-lg ${u.is_active ? 'bg-rose-500/20 text-rose-400 hover:bg-rose-500/30' : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'} text-xs transition-colors">${u.is_active ? 'Bloquear' : 'Desbloquear'}</button>
         </div>
       </div>
     `;
@@ -947,45 +784,29 @@ function renderUsers(users) {
   lucide.createIcons();
 }
 
-// ===== RENDER: HISTÓRICO =====
+// ===================== RENDER HISTORY =====================
 function renderHistory(logs) {
-  const loading = document.getElementById('historyLoading');
-  const content = document.getElementById('historyContent');
-  const empty = document.getElementById('historyEmpty');
-  loading.classList.add('hidden');
-
-  if (!logs || !Array.isArray(logs) || logs.length === 0) {
-    content.classList.add('hidden');
-    empty.classList.remove('hidden');
-    lucide.createIcons();
+  const container = document.getElementById('historyContent');
+  if (!logs || logs.length === 0) {
+    container.innerHTML = '<p class="text-slate-500 text-sm text-center py-8">Nenhum registro de auditoria encontrado.</p>';
     return;
   }
 
-  content.classList.remove('hidden');
-  empty.classList.add('hidden');
-
-  content.innerHTML = logs.map(log => {
-    const actionColors = { DELETE: 'text-rose-400', CREATE: 'text-emerald-400', UPDATE: 'text-indigo-400', LOGIN: 'text-blue-400', LOGOUT: 'text-slate-400' };
-    const actionColor = actionColors[log.action] || 'text-slate-400';
-    return `
-      <div class="card p-4 fade-in">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-xs font-semibold ${actionColor}">${log.action || 'AÇÃO'}</span>
-          <span class="text-[10px] text-slate-500">${log.created_at ? fmtDateTime(log.created_at) : '—'}</span>
-        </div>
-        <p class="text-sm text-white">${esc(log.entity_type || 'Entidade')}${log.entity_id ? ' <span class="text-slate-500 font-mono text-xs">#' + esc(String(log.entity_id).slice(0,8)) + '</span>' : ''}</p>
-        <p class="text-xs text-slate-400 mt-1">Por: ${esc(log.user_email || 'Sistema')}</p>
-        ${log.old_values || log.new_values ? `<details class="mt-2"><summary class="text-[10px] text-slate-500 cursor-pointer hover:text-slate-300">Ver detalhes</summary><pre class="mt-1 text-[10px] text-slate-500 bg-slate-900/50 rounded p-2 overflow-x-auto">${esc(JSON.stringify({antes: log.old_values, depois: log.new_values}, null, 2)).slice(0, 800)}</pre></details>` : ''}
+  container.innerHTML = logs.map(log => `
+    <div class="card p-4">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-medium ${log.action === 'DELETE' ? 'text-rose-400' : log.action === 'CREATE' ? 'text-emerald-400' : 'text-indigo-400'}">${log.action}</span>
+        <span class="text-[10px] text-slate-500">${new Date(log.created_at).toLocaleString('pt-BR')}</span>
       </div>
-    `;
-  }).join('');
-  lucide.createIcons();
+      <p class="text-sm text-white">${log.entity_type}${log.entity_id ? ' #' + log.entity_id.slice(0,8) : ''}</p>
+      <p class="text-xs text-slate-400 mt-1">Por: ${log.user_email || 'Sistema'}</p>
+    </div>
+  `).join('');
 }
 
-// ===== AÇÕES DE USUÁRIO =====
+// ===================== USER ACTIONS =====================
 async function resetUserPassword(userId, email) {
-  if (!userId) { toast('ID do usuário não encontrado', 'error'); return; }
-  if (!confirm(`Redefinir senha de ${email || 'usuário'}?`)) return;
+  if (!confirm(`Redefinir senha de ${email}? Uma nova senha temporária será gerada.`)) return;
   try {
     const res = await fetch(`${state.apiUrl}/super-admin-user-manage`, {
       method: 'POST',
@@ -994,97 +815,74 @@ async function resetUserPassword(userId, email) {
     });
     const data = await res.json();
     if (data.success) {
-      alert(`Nova senha temporária para ${email || 'usuário'}:
+      toast(`Nova senha: ${data.temp_password}`, 'success');
+      alert(`Nova senha temporária para ${email}:
 
-${data.temp_password || '—'}
+${data.temp_password}
 
-Copie e envie com segurança.`);
-      toast('Senha redefinida!', 'success');
+Copie e envie para o usuário.`);
     } else {
-      toast(data.error || 'Erro ao redefinir senha', 'error');
+      toast(data.error, 'error');
     }
   } catch (err) {
-    console.error(err);
-    toast('Erro de conexão', 'error');
+    toast('Erro ao redefinir senha', 'error');
   }
 }
 
 async function toggleUserBlock(userId, isActive) {
-  if (!userId) { toast('ID do usuário não encontrado', 'error'); return; }
   const action = isActive ? 'block' : 'unblock';
-  if (!confirm(isActive ? 'Bloquear este usuário? Ele não poderá acessar o painel.' : 'Desbloquear este usuário?')) return;
+  const msg = isActive ? 'Bloquear este usuário?' : 'Desbloquear este usuário?';
+  if (!confirm(msg)) return;
   try {
     const res = await fetch(`${state.apiUrl}/super-admin-user-manage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.token}` },
-      body: JSON.stringify({ action, user_id: userId, unit_id: state.currentUnitId })
+      body: JSON.stringify({ action, user_id: userId, unit_id: state.currentUnit?.id })
     });
     const data = await res.json();
     if (data.success) {
-      toast(data.message || 'Status alterado', 'success');
-      reloadCurrentUnit();
+      toast(data.message, 'success');
+      manageUnit(state.currentUnit.id); // recarregar
     } else {
-      toast(data.error || 'Erro ao alterar status', 'error');
+      toast(data.error, 'error');
     }
   } catch (err) {
-    console.error(err);
-    toast('Erro de conexão', 'error');
+    toast('Erro ao alterar status do usuário', 'error');
   }
 }
 
-// ===== UTILITÁRIOS =====
+// ===================== DELETE UNIT =====================
+async function deleteCurrentUnit() {
+  if (!state.currentUnit) return;
+  if (!confirm(`Tem certeza que deseja excluir a loja "${state.currentUnit.name}"?
+
+Esta ação não pode ser desfeita. Todos os dados (clientes, pets, agendamentos) serão perdidos.`)) return;
+
+  try {
+    // Usar a API REST do Supabase diretamente para deletar a unit (cascade nas relações)
+    const sbUrl = state.apiUrl.replace('/functions/v1', '');
+    const sbServiceKey = 'SUA_SERVICE_ROLE_KEY'; // Não temos acesso aqui, então vamos usar a Edge Function
+
+    toast('Função de exclusão em desenvolvimento. Use o SQL Editor do Supabase para excluir manualmente se necessário.', 'warning');
+    closeManageUnitModal();
+  } catch (err) {
+    toast('Erro ao remover loja', 'error');
+  }
+}
+
+// ===================== UTILS =====================
 function copyToClipboard(elementId) {
-  const el = document.getElementById(elementId);
-  if (!el) return;
-  const text = el.textContent || '';
-  navigator.clipboard.writeText(text).then(() => toast('Copiado para a área de transferência!', 'success')).catch(() => toast('Erro ao copiar', 'error'));
+  const text = document.getElementById(elementId).textContent;
+  navigator.clipboard.writeText(text).then(() => toast('Copiado!', 'success'));
 }
 
 function toast(message, type = 'info') {
-  const colors = { success: 'bg-emerald-600', error: 'bg-rose-600', warning: 'bg-amber-600', info: 'bg-indigo-600' };
+  const colors = { success: 'bg-emerald-500', error: 'bg-rose-500', warning: 'bg-amber-500', info: 'bg-indigo-500' };
   const el = document.createElement('div');
   el.className = `toast ${colors[type] || colors.info}`;
   el.textContent = message;
   document.body.appendChild(el);
-  setTimeout(() => {
-    el.style.transition = 'all 0.3s ease';
-    el.style.opacity = '0';
-    el.style.transform = 'translateX(120%)';
-    setTimeout(() => el.remove(), 350);
-  }, 4000);
-}
-
-function setBtnLoading(btn, text) {
-  btn.disabled = true;
-  btn.dataset.originalHtml = btn.innerHTML;
-  btn.innerHTML = `<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>${text}`;
-}
-
-function resetBtn(btn, html) {
-  btn.disabled = false;
-  btn.innerHTML = html || btn.dataset.originalHtml || html;
-  lucide.createIcons();
-}
-
-function esc(str) {
-  if (str === null || str === undefined) return '';
-  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-function fmtDate(iso) {
-  try {
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return '—';
-    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  } catch (e) { return '—'; }
-}
-
-function fmtDateTime(iso) {
-  try {
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return '—';
-    return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-  } catch (e) { return '—'; }
+  setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateX(100%)'; setTimeout(() => el.remove(), 300); }, 4000);
 }
 </script>
 </body>
