@@ -8,19 +8,7 @@
 <script src="https://unpkg.com/lucide@latest"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg-primary: #0f172a;
-    --bg-secondary: #1e293b;
-    --bg-tertiary: #334155;
-    --text-primary: #f1f5f9;
-    --text-secondary: #94a3b8;
-    --primary: #6366f1;
-    --primary-dark: #4f46e5;
-    --success: #10b981;
-    --warning: #f59e0b;
-    --error: #ef4444;
-    --border: #334155;
-  }
+  :root { --bg-primary: #0f172a; --bg-secondary: #1e293b; --bg-tertiary: #334155; --text-primary: #f1f5f9; --text-secondary: #94a3b8; --primary: #6366f1; --primary-dark: #4f46e5; --success: #10b981; --warning: #f59e0b; --error: #ef4444; --border: #334155; }
   * { font-family: 'Inter', sans-serif; }
   body { background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }
   .glass { background: rgba(30,41,59,0.8); backdrop-filter: blur(12px); border: 1px solid var(--border); }
@@ -205,7 +193,7 @@
   </div>
 </div>
 
-<!-- MODAL: GERENCIAR LOJA (DETALHES) -->
+<!-- MODAL: GERENCIAR LOJA -->
 <div id="manageUnitModal" class="hidden modal-overlay">
   <div class="modal-content modal-content-lg p-6 fade-in">
     <div class="flex items-center justify-between mb-4">
@@ -214,9 +202,6 @@
         <p id="manageUnitPlan" class="text-xs text-slate-400 mt-0.5"></p>
       </div>
       <div class="flex items-center gap-2">
-        <button onclick="deleteCurrentUnit()" class="px-3 py-1.5 rounded-lg border border-rose-600 text-rose-400 hover:bg-rose-600/20 text-xs font-medium flex items-center gap-1.5 transition-colors">
-          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Excluir
-        </button>
         <button onclick="closeManageUnitModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
     </div>
@@ -229,7 +214,6 @@
       <button class="tab-btn" data-tab="history" onclick="switchTab('history')">Histórico</button>
     </div>
 
-    <!-- TAB: EDITAR LOJA -->
     <div id="tab-edit" class="tab-content">
       <form id="editUnitForm" onsubmit="event.preventDefault(); saveUnitEdit();">
         <input type="hidden" id="editUnitId">
@@ -239,16 +223,16 @@
             <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Nome da Unidade</label><input type="text" id="editName" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm"></div>
             <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Telefone</label><input type="text" id="editPhone" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm"></div>
           </div>
-          <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Descrição</label><textarea id="editDescription" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm h-20 resize-none" placeholder="Descrição que aparece no painel da loja..."></textarea></div>
+          <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Descrição</label><textarea id="editDescription" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm h-20 resize-none"></textarea></div>
           <div class="grid grid-cols-3 gap-4">
-            <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Cor Primária</label><div class="flex items-center gap-2"><input type="color" id="editPrimaryColor" class="w-8 h-8 rounded cursor-pointer border-0 p-0" value="#6366f1"><input type="text" id="editPrimaryColorHex" class="input-dark w-full rounded-lg px-3 py-2 text-sm" value="#6366f1" onchange="document.getElementById('editPrimaryColor').value=this.value"></div></div>
-            <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Cor Secundária</label><div class="flex items-center gap-2"><input type="color" id="editSecondaryColor" class="w-8 h-8 rounded cursor-pointer border-0 p-0" value="#8b5cf6"><input type="text" id="editSecondaryColorHex" class="input-dark w-full rounded-lg px-3 py-2 text-sm" value="#8b5cf6" onchange="document.getElementById('editSecondaryColor').value=this.value"></div></div>
-            <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Cor Destaque</label><div class="flex items-center gap-2"><input type="color" id="editAccentColor" class="w-8 h-8 rounded cursor-pointer border-0 p-0" value="#10b981"><input type="text" id="editAccentColorHex" class="input-dark w-full rounded-lg px-3 py-2 text-sm" value="#10b981" onchange="document.getElementById('editAccentColor').value=this.value"></div></div>
+            <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Cor Primária</label><div class="flex items-center gap-2"><input type="color" id="editPrimaryColor" class="w-8 h-8 rounded cursor-pointer border-0 p-0"><input type="text" id="editPrimaryColorHex" class="input-dark w-full rounded-lg px-3 py-2 text-sm" onchange="document.getElementById('editPrimaryColor').value=this.value"></div></div>
+            <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Cor Secundária</label><div class="flex items-center gap-2"><input type="color" id="editSecondaryColor" class="w-8 h-8 rounded cursor-pointer border-0 p-0"><input type="text" id="editSecondaryColorHex" class="input-dark w-full rounded-lg px-3 py-2 text-sm" onchange="document.getElementById('editSecondaryColor').value=this.value"></div></div>
+            <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Cor Destaque</label><div class="flex items-center gap-2"><input type="color" id="editAccentColor" class="w-8 h-8 rounded cursor-pointer border-0 p-0"><input type="text" id="editAccentColorHex" class="input-dark w-full rounded-lg px-3 py-2 text-sm" onchange="document.getElementById('editAccentColor').value=this.value"></div></div>
           </div>
-          <div><label class="block text-xs font-medium text-slate-400 mb-1.5">SEO Título</label><input type="text" id="editSeoTitle" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm" placeholder="Título da página no Google"></div>
-          <div><label class="block text-xs font-medium text-slate-400 mb-1.5">SEO Descrição</label><textarea id="editSeoDescription" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm h-16 resize-none" placeholder="Descrição para motores de busca..."></textarea></div>
-          <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Mensagem de Boas-vindas</label><textarea id="editWelcome" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm h-16 resize-none" placeholder="Mensagem exibida no painel da loja..."></textarea></div>
-          <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Texto do Rodapé</label><textarea id="editFooter" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm h-16 resize-none" placeholder="Texto do rodapé..."></textarea></div>
+          <div><label class="block text-xs font-medium text-slate-400 mb-1.5">SEO Título</label><input type="text" id="editSeoTitle" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm"></div>
+          <div><label class="block text-xs font-medium text-slate-400 mb-1.5">SEO Descrição</label><textarea id="editSeoDescription" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm h-16 resize-none"></textarea></div>
+          <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Mensagem de Boas-vindas</label><textarea id="editWelcome" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm h-16 resize-none"></textarea></div>
+          <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Texto do Rodapé</label><textarea id="editFooter" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm h-16 resize-none"></textarea></div>
         </div>
         <div class="mt-6">
           <button type="submit" id="btnSaveEdit" class="w-full btn-primary py-2.5 rounded-lg text-white text-sm font-medium flex items-center justify-center gap-2"><i data-lucide="save" class="w-4 h-4"></i> Salvar Alterações</button>
@@ -256,17 +240,16 @@
       </form>
     </div>
 
-    <!-- TAB: DADOS CADASTRAIS -->
     <div id="tab-company" class="tab-content hidden">
       <form id="editCompanyForm" onsubmit="event.preventDefault(); saveCompanyEdit();">
         <div class="space-y-4 max-h-[55vh] overflow-y-auto pr-2">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Razão Social</label><input type="text" id="editRazaoSocial" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm"></div>
-            <div><label class="block text-xs font-medium text-slate-400 mb-1.5">CNPJ / CPF</label><input type="text" id="editCnpjCpf" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm" placeholder="00.000.000/0000-00 ou 000.000.000-00"></div>
+            <div><label class="block text-xs font-medium text-slate-400 mb-1.5">CNPJ / CPF</label><input type="text" id="editCnpjCpf" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm"></div>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Email da Empresa</label><input type="email" id="editCompanyEmail" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm"></div>
-            <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Website</label><input type="text" id="editWebsite" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm" placeholder="https://..."></div>
+            <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Website</label><input type="text" id="editWebsite" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm"></div>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Responsável</label><input type="text" id="editResponsible" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm"></div>
@@ -283,17 +266,14 @@
       </form>
     </div>
 
-    <!-- TAB: USUÁRIOS -->
     <div id="tab-users" class="tab-content hidden">
       <div id="usersList" class="space-y-3 max-h-[55vh] overflow-y-auto pr-2"></div>
     </div>
 
-    <!-- TAB: ASSINATURA -->
     <div id="tab-subscription" class="tab-content hidden">
       <div id="subscriptionContent"></div>
     </div>
 
-    <!-- TAB: HISTÓRICO -->
     <div id="tab-history" class="tab-content hidden">
       <div id="historyContent" class="space-y-3 max-h-[55vh] overflow-y-auto pr-2"></div>
     </div>
@@ -301,17 +281,16 @@
 </div>
 
 <script>
-// ===================== STATE =====================
 let state = {
   token: localStorage.getItem('pf_admin_token') || null,
   user: JSON.parse(localStorage.getItem('pf_admin_user') || 'null'),
   apiUrl: localStorage.getItem('pf_api_url') || 'https://jnmtwalmfkcxixiwqbjm.supabase.co/functions/v1',
   units: [],
   currentUnit: null,
+  currentUnitDetail: null,
   currentTab: 'edit'
 };
 
-// ===================== INIT =====================
 document.addEventListener('DOMContentLoaded', () => {
   lucide.createIcons();
   if (state.token && state.user?.is_super_admin) {
@@ -322,18 +301,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// ===================== AUTH =====================
 async function doLogin() {
   const email = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value;
   const url = document.getElementById('apiUrl').value.trim();
   const btn = document.getElementById('loginBtn');
-
   if (!email || !password) { toast('Preencha email e senha', 'error'); return; }
-
   btn.disabled = true;
   btn.innerHTML = '<span class="animate-spin inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full"></span> Entrando...';
-
   try {
     const res = await fetch(`${url}/auth-login`, {
       method: 'POST',
@@ -341,7 +316,6 @@ async function doLogin() {
       body: JSON.stringify({ email, password })
     });
     const data = await res.json();
-
     if (!data.success) {
       toast(data.error || 'Erro ao entrar', 'error');
       btn.disabled = false;
@@ -349,18 +323,15 @@ async function doLogin() {
       lucide.createIcons();
       return;
     }
-
     state.token = data.data.access_token;
     state.user = data.data.user;
     state.apiUrl = url;
     localStorage.setItem('pf_admin_token', state.token);
     localStorage.setItem('pf_admin_user', JSON.stringify(state.user));
     localStorage.setItem('pf_api_url', url);
-
     toast(`Bem-vindo, ${state.user.name || state.user.email}!`, 'success');
     showDashboard();
     loadUnits();
-
   } catch (err) {
     toast('Erro de conexão. Verifique a URL da API.', 'error');
     btn.disabled = false;
@@ -378,7 +349,6 @@ function logout() {
   toast('Desconectado', 'info');
 }
 
-// ===================== VIEWS =====================
 function showLogin() {
   document.getElementById('loginScreen').classList.remove('hidden');
   document.getElementById('dashboardScreen').classList.add('hidden');
@@ -390,7 +360,6 @@ function showDashboard() {
   document.getElementById('adminName').textContent = state.user?.name || state.user?.email;
 }
 
-// ===================== LOAD UNITS =====================
 async function loadUnits() {
   if (!state.user?.units) return;
   state.units = state.user.units;
@@ -413,7 +382,6 @@ function renderUnits() {
     lucide.createIcons();
     return;
   }
-
   grid.innerHTML = state.units.map(u => `
     <div class="card p-5 fade-in">
       <div class="flex items-start justify-between mb-3">
@@ -435,7 +403,6 @@ function renderUnits() {
   lucide.createIcons();
 }
 
-// ===================== CREATE UNIT =====================
 function openNewUnitModal() {
   document.getElementById('newUnitModal').classList.remove('hidden');
   document.getElementById('newUnitForm').reset();
@@ -450,7 +417,6 @@ async function createUnit() {
   const btn = document.getElementById('btnCreate');
   btn.disabled = true;
   btn.innerHTML = '<span class="animate-spin inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full"></span> Criando...';
-
   const payload = {
     company_name: document.getElementById('fCompany').value.trim(),
     unit_name: document.getElementById('fUnit').value.trim(),
@@ -461,18 +427,13 @@ async function createUnit() {
     state: document.getElementById('fState').value.trim() || 'BA',
     timezone: document.getElementById('fTimezone').value,
   };
-
   try {
     const res = await fetch(`${state.apiUrl}/super-admin-create-unit`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${state.token}`
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.token}` },
       body: JSON.stringify(payload)
     });
     const data = await res.json();
-
     if (!data.success) {
       toast(data.error || 'Erro ao criar loja', 'error');
       btn.disabled = false;
@@ -480,12 +441,10 @@ async function createUnit() {
       lucide.createIcons();
       return;
     }
-
     state.units.unshift(data.data.unit);
     renderUnits();
     updateStats();
     closeNewUnitModal();
-
     document.getElementById('credUnitName').textContent = data.data.unit.name;
     document.getElementById('credApiKey').textContent = data.data.unit.api_key;
     document.getElementById('credEmail').textContent = data.data.owner.email;
@@ -493,7 +452,6 @@ async function createUnit() {
     document.getElementById('credentialsModal').classList.remove('hidden');
     lucide.createIcons();
     toast('Loja criada com sucesso!', 'success');
-
   } catch (err) {
     toast('Erro de conexão ao criar loja', 'error');
     btn.disabled = false;
@@ -506,17 +464,13 @@ function closeCredentialsModal() {
   document.getElementById('credentialsModal').classList.add('hidden');
 }
 
-// ===================== MANAGE UNIT =====================
 async function manageUnit(unitId) {
   state.currentUnit = state.units.find(u => u.id === unitId);
   if (!state.currentUnit) return;
-
   document.getElementById('manageUnitName').textContent = state.currentUnit.name;
-  document.getElementById('manageUnitPlan').textContent = `Plano: Carregando... | Status: ${state.currentUnit.status || 'ACTIVE'}`;
+  document.getElementById('manageUnitPlan').textContent = 'Plano: Carregando... | Status: ' + (state.currentUnit.status || 'ACTIVE');
   document.getElementById('manageUnitModal').classList.remove('hidden');
   switchTab('edit');
-
-  // Carregar detalhes completos
   try {
     const res = await fetch(`${state.apiUrl}/super-admin-unit-detail?id=${unitId}`, {
       headers: { 'Authorization': `Bearer ${state.token}` }
@@ -528,9 +482,15 @@ async function manageUnit(unitId) {
       renderSubscription(data.data.subscription);
       renderUsers(data.data.users);
       renderHistory(data.data.audit_logs);
+      // Atualizar header com plano
+      const planName = data.data.subscription?.plans?.name || 'Sem plano';
+      const subStatus = data.data.subscription?.status || 'ACTIVE';
+      document.getElementById('manageUnitPlan').textContent = `Plano: ${planName} | Status: ${subStatus}`;
+    } else {
+      toast(data.error || 'Erro ao carregar detalhes', 'error');
     }
   } catch (err) {
-    toast('Erro ao carregar detalhes da loja', 'error');
+    toast('Erro de conexão ao carregar detalhes', 'error');
   }
 }
 
@@ -552,7 +512,6 @@ function switchTab(tab) {
 function populateEditForm(data) {
   const unit = data.unit || {};
   const company = unit.companies || {};
-
   document.getElementById('editUnitId').value = unit.id || '';
   document.getElementById('editCompanyId').value = unit.company_id || '';
   document.getElementById('editName').value = unit.name || '';
@@ -568,8 +527,6 @@ function populateEditForm(data) {
   document.getElementById('editSeoDescription').value = unit.seo_description || '';
   document.getElementById('editWelcome').value = unit.welcome_message || '';
   document.getElementById('editFooter').value = unit.footer_text || '';
-
-  // Company data
   document.getElementById('editRazaoSocial').value = company.razao_social || '';
   document.getElementById('editCnpjCpf').value = company.cnpj_cpf || '';
   document.getElementById('editCompanyEmail').value = company.email || '';
@@ -580,54 +537,39 @@ function populateEditForm(data) {
   document.getElementById('editState').value = unit.state || '';
 }
 
-// ===================== SAVE EDIT =====================
 async function saveUnitEdit() {
   const btn = document.getElementById('btnSaveEdit');
   btn.disabled = true;
   btn.innerHTML = '<span class="animate-spin inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full"></span> Salvando...';
-
   const unitId = document.getElementById('editUnitId').value;
   const companyId = document.getElementById('editCompanyId').value;
-
   const unitData = {};
-  const name = document.getElementById('editName').value.trim();
-  const phone = document.getElementById('editPhone').value.trim();
-  const description = document.getElementById('editDescription').value.trim();
-  const primaryColor = document.getElementById('editPrimaryColor').value;
-  const secondaryColor = document.getElementById('editSecondaryColor').value;
-  const accentColor = document.getElementById('editAccentColor').value;
-  const seoTitle = document.getElementById('editSeoTitle').value.trim();
-  const seoDesc = document.getElementById('editSeoDescription').value.trim();
-  const welcome = document.getElementById('editWelcome').value.trim();
-  const footer = document.getElementById('editFooter').value.trim();
-
-  if (name) unitData.name = name;
-  if (phone) unitData.phone = phone;
-  if (description) unitData.description = description;
-  if (primaryColor) unitData.primary_color = primaryColor;
-  if (secondaryColor) unitData.secondary_color = secondaryColor;
-  if (accentColor) unitData.accent_color = accentColor;
-  if (seoTitle) unitData.seo_title = seoTitle;
-  if (seoDesc) unitData.seo_description = seoDesc;
-  if (welcome) unitData.welcome_message = welcome;
-  if (footer) unitData.footer_text = footer;
-
+  const fields = {
+    name: document.getElementById('editName').value.trim(),
+    phone: document.getElementById('editPhone').value.trim(),
+    description: document.getElementById('editDescription').value.trim(),
+    primary_color: document.getElementById('editPrimaryColor').value,
+    secondary_color: document.getElementById('editSecondaryColor').value,
+    accent_color: document.getElementById('editAccentColor').value,
+    seo_title: document.getElementById('editSeoTitle').value.trim(),
+    seo_description: document.getElementById('editSeoDescription').value.trim(),
+    welcome_message: document.getElementById('editWelcome').value.trim(),
+    footer_text: document.getElementById('editFooter').value.trim()
+  };
+  for (const [key, val] of Object.entries(fields)) {
+    if (val) unitData[key] = val;
+  }
   try {
     const res = await fetch(`${state.apiUrl}/super-admin-unit-update`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${state.token}`
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.token}` },
       body: JSON.stringify({ unit_id: unitId, company_id: companyId, unit_data: unitData })
     });
     const data = await res.json();
-
     if (!data.success) {
       toast(data.error || 'Erro ao salvar', 'error');
     } else {
       toast('Alterações salvas com sucesso!', 'success');
-      // Atualizar local
       const idx = state.units.findIndex(u => u.id === unitId);
       if (idx >= 0) {
         Object.assign(state.units[idx], unitData);
@@ -637,7 +579,6 @@ async function saveUnitEdit() {
   } catch (err) {
     toast('Erro de conexão ao salvar', 'error');
   }
-
   btn.disabled = false;
   btn.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i> Salvar Alterações';
   lucide.createIcons();
@@ -646,35 +587,27 @@ async function saveUnitEdit() {
 async function saveCompanyEdit() {
   const unitId = document.getElementById('editUnitId').value;
   const companyId = document.getElementById('editCompanyId').value;
-
   const companyData = {};
-  const razao = document.getElementById('editRazaoSocial').value.trim();
-  const cnpj = document.getElementById('editCnpjCpf').value.trim();
-  const email = document.getElementById('editCompanyEmail').value.trim();
-  const website = document.getElementById('editWebsite').value.trim();
-  const resp = document.getElementById('editResponsible').value.trim();
-  const respPhone = document.getElementById('editRespPhone').value.trim();
+  const cFields = {
+    razao_social: document.getElementById('editRazaoSocial').value.trim(),
+    cnpj_cpf: document.getElementById('editCnpjCpf').value.trim(),
+    email: document.getElementById('editCompanyEmail').value.trim(),
+    website: document.getElementById('editWebsite').value.trim(),
+    responsible_name: document.getElementById('editResponsible').value.trim(),
+    responsible_phone: document.getElementById('editRespPhone').value.trim()
+  };
+  for (const [key, val] of Object.entries(cFields)) {
+    if (val) companyData[key] = val;
+  }
+  const unitData = {};
   const city = document.getElementById('editCity').value.trim();
   const estado = document.getElementById('editState').value.trim();
-
-  if (razao) companyData.razao_social = razao;
-  if (cnpj) companyData.cnpj_cpf = cnpj;
-  if (email) companyData.email = email;
-  if (website) companyData.website = website;
-  if (resp) companyData.responsible_name = resp;
-  if (respPhone) companyData.responsible_phone = respPhone;
-
-  const unitData = {};
   if (city) unitData.city = city;
   if (estado) unitData.state = estado;
-
   try {
     const res = await fetch(`${state.apiUrl}/super-admin-unit-update`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${state.token}`
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.token}` },
       body: JSON.stringify({ unit_id: unitId, company_id: companyId, company_data: companyData, unit_data: unitData })
     });
     const data = await res.json();
@@ -688,7 +621,6 @@ async function saveCompanyEdit() {
   }
 }
 
-// ===================== RENDER SUBSCRIPTION =====================
 function renderSubscription(sub) {
   const container = document.getElementById('subscriptionContent');
   if (!sub) {
@@ -703,12 +635,12 @@ function renderSubscription(sub) {
     lucide.createIcons();
     return;
   }
-
   const plan = sub.plans || { name: 'Sem plano', price: 0 };
-  const daysLeft = sub.end_date ? Math.max(0, Math.ceil((new Date(sub.end_date) - new Date()) / (1000 * 60 * 60 * 24))) : 0;
+  const endDate = sub.end_date ? new Date(sub.end_date) : null;
+  const today = new Date();
+  const daysLeft = endDate ? Math.max(0, Math.ceil((endDate - today) / (1000 * 60 * 60 * 24))) : 0;
   const statusClass = sub.status === 'ACTIVE' ? 'badge-active' : sub.status === 'RENEWAL_NEAR' ? 'badge-renewal' : 'badge-inactive';
   const statusText = { ACTIVE: 'Ativa', RENEWAL_NEAR: 'Renovação Próxima', PAYMENT_PENDING: 'Pagamento Pendente', OVERDUE: 'Vencida', CANCELLED: 'Cancelada', SUSPENDED: 'Suspensa' }[sub.status] || sub.status;
-
   container.innerHTML = `
     <div class="space-y-4">
       <div class="card p-4 text-center">
@@ -735,14 +667,12 @@ function renderSubscription(sub) {
   lucide.createIcons();
 }
 
-// ===================== RENDER USERS =====================
 function renderUsers(users) {
   const container = document.getElementById('usersList');
   if (!users || users.length === 0) {
     container.innerHTML = '<p class="text-slate-500 text-sm text-center py-8">Nenhum usuário vinculado a esta loja.</p>';
     return;
   }
-
   container.innerHTML = users.map(u => {
     const userData = u.users || {};
     return `
@@ -756,7 +686,7 @@ function renderUsers(users) {
           </div>
         </div>
         <div class="flex items-center gap-2">
-          <button onclick="resetUserPassword('${u.user_id}', '${userData.email}')" class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs transition-colors" title="Redefinir senha">Redefinir Senha</button>
+          <button onclick="resetUserPassword('${u.user_id}', '${userData.email}')" class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs transition-colors">Redefinir Senha</button>
           <button onclick="toggleUserBlock('${u.user_id}', ${u.is_active})" class="px-3 py-1.5 rounded-lg ${u.is_active ? 'bg-rose-500/20 text-rose-400 hover:bg-rose-500/30' : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'} text-xs transition-colors">${u.is_active ? 'Bloquear' : 'Desbloquear'}</button>
         </div>
       </div>
@@ -765,14 +695,12 @@ function renderUsers(users) {
   lucide.createIcons();
 }
 
-// ===================== RENDER HISTORY =====================
 function renderHistory(logs) {
   const container = document.getElementById('historyContent');
   if (!logs || logs.length === 0) {
     container.innerHTML = '<p class="text-slate-500 text-sm text-center py-8">Nenhum registro de auditoria encontrado.</p>';
     return;
   }
-
   container.innerHTML = logs.map(log => `
     <div class="card p-4">
       <div class="flex items-center justify-between mb-2">
@@ -785,9 +713,8 @@ function renderHistory(logs) {
   `).join('');
 }
 
-// ===================== USER ACTIONS =====================
 async function resetUserPassword(userId, email) {
-  if (!confirm(`Redefinir senha de ${email}? Uma nova senha temporária será gerada.`)) return;
+  if (!confirm(`Redefinir senha de ${email}?`)) return;
   try {
     const res = await fetch(`${state.apiUrl}/super-admin-user-manage`, {
       method: 'POST',
@@ -796,12 +723,8 @@ async function resetUserPassword(userId, email) {
     });
     const data = await res.json();
     if (data.success) {
-      toast(`Nova senha: ${data.temp_password}`, 'success');
-      alert(`Nova senha temporária para ${email}:
-
-${data.temp_password}
-
-Copie e envie para o usuário.`);
+      alert(`Nova senha temporária para ${email}:\\n\\n${data.temp_password}`);
+      toast('Senha redefinida!', 'success');
     } else {
       toast(data.error, 'error');
     }
@@ -812,8 +735,7 @@ Copie e envie para o usuário.`);
 
 async function toggleUserBlock(userId, isActive) {
   const action = isActive ? 'block' : 'unblock';
-  const msg = isActive ? 'Bloquear este usuário?' : 'Desbloquear este usuário?';
-  if (!confirm(msg)) return;
+  if (!confirm(isActive ? 'Bloquear este usuário?' : 'Desbloquear este usuário?')) return;
   try {
     const res = await fetch(`${state.apiUrl}/super-admin-user-manage`, {
       method: 'POST',
@@ -823,35 +745,15 @@ async function toggleUserBlock(userId, isActive) {
     const data = await res.json();
     if (data.success) {
       toast(data.message, 'success');
-      manageUnit(state.currentUnit.id); // recarregar
+      manageUnit(state.currentUnit.id);
     } else {
       toast(data.error, 'error');
     }
   } catch (err) {
-    toast('Erro ao alterar status do usuário', 'error');
+    toast('Erro ao alterar status', 'error');
   }
 }
 
-// ===================== DELETE UNIT =====================
-async function deleteCurrentUnit() {
-  if (!state.currentUnit) return;
-  if (!confirm(`Tem certeza que deseja excluir a loja "${state.currentUnit.name}"?
-
-Esta ação não pode ser desfeita. Todos os dados (clientes, pets, agendamentos) serão perdidos.`)) return;
-
-  try {
-    // Usar a API REST do Supabase diretamente para deletar a unit (cascade nas relações)
-    const sbUrl = state.apiUrl.replace('/functions/v1', '');
-    const sbServiceKey = 'SUA_SERVICE_ROLE_KEY'; // Não temos acesso aqui, então vamos usar a Edge Function
-
-    toast('Função de exclusão em desenvolvimento. Use o SQL Editor do Supabase para excluir manualmente se necessário.', 'warning');
-    closeManageUnitModal();
-  } catch (err) {
-    toast('Erro ao remover loja', 'error');
-  }
-}
-
-// ===================== UTILS =====================
 function copyToClipboard(elementId) {
   const text = document.getElementById(elementId).textContent;
   navigator.clipboard.writeText(text).then(() => toast('Copiado!', 'success'));
