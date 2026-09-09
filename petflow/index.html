@@ -101,6 +101,7 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
 .subscription-banner{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 24px;font-size:13px;font-weight:500;flex-shrink:0;}
 .subscription-banner.warning{background:rgba(245,158,11,0.15);color:#fbbf24;border-bottom:1px solid rgba(245,158,11,0.3);}
 .subscription-banner.danger{background:rgba(244,63,94,0.18);color:#fb7185;border-bottom:1px solid rgba(244,63,94,0.35);}
+@media(max-width:900px){.settings-grid{grid-template-columns:1fr !important;}}
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;}
 .stat-card{padding:20px;}
 .stat-icon{width:40px;height:40px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;margin-bottom:12px;}
@@ -1081,7 +1082,44 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
   </div>
 </template>
 
-<template id="settingsView"><div class="empty-state" style="padding-top:80px;"><div class="empty-state-icon"><i data-lucide="settings" style="width:64px;height:64px;"></i></div><div class="empty-state-title">Configurações</div><div class="empty-state-desc">Módulo em construção — será adicionado na Parte 7.</div></div></template>
+<template id="settingsView">
+<div>
+  <div class="settings-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+    <div class="card">
+      <div class="card-header"><div><div class="card-title">Dados da Loja</div><div class="card-subtitle">Informações do estabelecimento</div></div></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Nome da Loja *</label><input type="text" id="cfgName" class="form-input"></div>
+        <div class="form-group"><label class="form-label">Telefone</label><input type="text" id="cfgPhone" class="form-input" placeholder="(71) 99999-9999"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Email</label><input type="email" id="cfgEmail" class="form-input" placeholder="loja@email.com"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">CEP</label><input type="text" id="cfgZip" class="form-input" placeholder="40000-000"></div>
+        <div class="form-group"><label class="form-label">Cidade</label><input type="text" id="cfgCity" class="form-input" placeholder="Salvador"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Estado</label><input type="text" id="cfgState" class="form-input" placeholder="BA" maxlength="2"></div>
+        <div class="form-group"><label class="form-label">Bairro</label><input type="text" id="cfgNeighborhood" class="form-input"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Rua</label><input type="text" id="cfgStreet" class="form-input"></div>
+        <div class="form-group"><label class="form-label">Número</label><input type="text" id="cfgNumber" class="form-input"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Complemento</label><input type="text" id="cfgComplement" class="form-input" placeholder="Sala, bloco..."></div>
+      <div class="form-group"><label class="form-label">Descrição</label><textarea id="cfgDesc" class="form-textarea" placeholder="Descrição da loja..."></textarea></div>
+      <div class="form-group"><label class="form-label">Fuso Horário</label><div id="cfgTz" style="font-size:14px;color:var(--text-secondary);padding:10px 14px;background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;">—</div></div>
+      <button class="btn btn-primary" id="cfgSaveBtn" onclick="saveSettings()" style="width:100%;"><i data-lucide="save" style="width:16px;height:16px;"></i> Salvar Dados da Loja</button>
+    </div>
+    <div class="card">
+      <div class="card-header"><div><div class="card-title">Plano & Assinatura</div><div class="card-subtitle">Sua assinatura atual na plataforma</div></div></div>
+      <div id="cfgSubContent"><div class="skeleton" style="height:160px;"></div></div>
+      <div style="margin-top:16px;padding:12px;background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--text-muted);line-height:1.6;">
+        <strong style="color:var(--text-secondary);">Precisa de ajuda?</strong><br>
+        Para trocar de plano ou ajustar o vencimento, fale com o suporte da plataforma.
+      </div>
+    </div>
+  </div>
+</div>
+</template>
 
 <template id="diagnosticView">
 <div>
@@ -1394,6 +1432,8 @@ const router = {
     if (route === 'schedule') initSchedule();
     if (route === 'blocks') initBlocks();
     if (route === 'diagnostic') initDiagnostic();
+    if (route === 'settings') initSettings();
+    subscription.check();
   },
   updateSidebar(route) {
     document.querySelectorAll('.nav-item[data-route]').forEach(el => {
@@ -1595,7 +1635,7 @@ const subscription = {
   startAutoCheck() {
     this.check();
     if (this.timer) clearInterval(this.timer);
-    this.timer = setInterval(() => this.check(), 60 * 60 * 1000); // recheck a cada 1h
+    this.timer = setInterval(() => this.check(), 10 * 60 * 1000); // recheck a cada 10min
   },
 
   async check() {
@@ -3596,6 +3636,94 @@ async function deletePet(id) {
   } catch (e) {
     showToast('error', 'Erro ao excluir', e.message);
   }
+}
+
+// ==================== SETTINGS ====================
+async function initSettings() {
+  try {
+    const res = await api.get('unit-config');
+    const u = (res && res.data) || {};
+    const setV = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+    setV('cfgName', u.name);
+    setV('cfgPhone', u.phone);
+    setV('cfgEmail', u.email);
+    setV('cfgZip', u.zip_code);
+    setV('cfgStreet', u.street);
+    setV('cfgNumber', u.number);
+    setV('cfgComplement', u.complement);
+    setV('cfgNeighborhood', u.neighborhood);
+    setV('cfgCity', u.city);
+    setV('cfgState', u.state);
+    setV('cfgDesc', u.description);
+    const tz = document.getElementById('cfgTz');
+    if (tz) tz.textContent = u.timezone || '—';
+  } catch (e) {
+    showToast('error', 'Erro ao carregar dados da loja', e.message);
+  }
+  renderSettingsSubscription();
+}
+
+async function renderSettingsSubscription() {
+  const el = document.getElementById('cfgSubContent');
+  if (!el) return;
+  try {
+    const res = await api.get('unit-subscription');
+    const sub = res && res.data;
+    if (!sub || !sub.end_date) {
+      el.innerHTML = '<div class="empty-state" style="padding:24px;"><div class="empty-state-title">Sem assinatura</div><div class="empty-state-desc">Fale com o suporte para ativar um plano.</div></div>';
+      return;
+    }
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const end = new Date(sub.end_date + 'T00:00:00');
+    const daysLeft = Math.round((end - today) / 86400000);
+    const status = (sub.status || '').toUpperCase();
+    const expired = daysLeft < 0 || status === 'EXPIRED' || status === 'CANCELLED' || status === 'SUSPENDED';
+    const planName = (sub.plans && sub.plans.name) || '—';
+    const cycleLabel = { MONTHLY: 'Mensal', QUARTERLY: 'Trimestral', YEARLY: 'Anual' }[sub.billing_cycle] || sub.billing_cycle || '—';
+    el.innerHTML = `
+      <div style="text-align:center;padding:16px;background:${expired ? 'rgba(244,63,94,0.1)' : 'rgba(99,102,241,0.08)'};border:1px solid ${expired ? 'rgba(244,63,94,0.3)' : 'rgba(99,102,241,0.2)'};border-radius:8px;margin-bottom:14px;">
+        <div style="font-size:12px;color:var(--text-muted);">Plano</div>
+        <div style="font-size:20px;font-weight:700;">${planName}</div>
+        <span class="badge badge-${expired ? 'error' : daysLeft <= 7 ? 'warning' : 'success'}" style="margin-top:6px;">${expired ? 'VENCIDO' : daysLeft === 0 ? 'Vence hoje' : daysLeft + ' dias restantes'}</span>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-item"><div class="detail-label">Valor</div><div class="detail-value">R$ ${parseFloat(sub.amount || 0).toFixed(2)} / ${cycleLabel}</div></div>
+        <div class="detail-item"><div class="detail-label">Status</div><div class="detail-value">${status || '—'}</div></div>
+        <div class="detail-item"><div class="detail-label">Início</div><div class="detail-value">${formatDate(sub.start_date)}</div></div>
+        <div class="detail-item"><div class="detail-label">Vencimento</div><div class="detail-value">${formatDate(sub.end_date)}</div></div>
+      </div>`;
+  } catch (e) {
+    el.innerHTML = '<div class="empty-state" style="padding:24px;"><div class="empty-state-desc">Não foi possível carregar a assinatura.</div></div>';
+  }
+}
+
+async function saveSettings() {
+  const getV = (id) => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  const payload = {
+    name: getV('cfgName'),
+    phone: getV('cfgPhone'),
+    email: getV('cfgEmail'),
+    zip_code: getV('cfgZip'),
+    street: getV('cfgStreet'),
+    number: getV('cfgNumber'),
+    complement: getV('cfgComplement'),
+    neighborhood: getV('cfgNeighborhood'),
+    city: getV('cfgCity'),
+    state: getV('cfgState'),
+    description: getV('cfgDesc'),
+  };
+  if (!payload.name) { showToast('warning', 'Nome obrigatório', 'A loja precisa de um nome.'); return; }
+  const btn = document.getElementById('cfgSaveBtn');
+  btn.disabled = true;
+  try {
+    await api.put('unit-config', payload);
+    showToast('success', 'Dados salvos', 'As informações da loja foram atualizadas.');
+    if (state.unit) state.unit.name = payload.name;
+    document.getElementById('unitName').textContent = payload.name;
+  } catch (e) {
+    showToast('error', 'Erro ao salvar', e.message);
+  }
+  btn.disabled = false;
 }
 
 // ==================== DIAGNOSTIC ====================
