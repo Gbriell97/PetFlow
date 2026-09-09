@@ -134,9 +134,14 @@
 
     <div class="flex items-center justify-between mb-6">
       <h2 class="text-lg font-semibold text-white">Unidades Cadastradas</h2>
-      <button onclick="openNewUnitModal()" class="btn-primary px-5 py-2.5 rounded-lg font-medium text-white text-sm flex items-center gap-2">
-        <i data-lucide="plus" class="w-4 h-4"></i> Nova Loja
-      </button>
+      <div class="flex items-center gap-2">
+        <button onclick="openPlansModal()" class="px-4 py-2.5 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-700 transition-colors text-sm font-medium flex items-center gap-2">
+          <i data-lucide="layers" class="w-4 h-4"></i> Planos
+        </button>
+        <button onclick="openNewUnitModal()" class="btn-primary px-5 py-2.5 rounded-lg font-medium text-white text-sm flex items-center gap-2">
+          <i data-lucide="plus" class="w-4 h-4"></i> Nova Loja
+        </button>
+      </div>
     </div>
 
     <div id="unitsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
@@ -296,6 +301,37 @@
     <!-- TAB: HISTÓRICO -->
     <div id="tab-history" class="tab-content hidden">
       <div id="historyContent" class="space-y-3 max-h-[55vh] overflow-y-auto pr-2"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: PLANOS -->
+<div id="plansModal" class="hidden modal-overlay">
+  <div class="modal-content p-6 fade-in">
+    <div class="flex items-center justify-between mb-6">
+      <h3 class="text-lg font-bold text-white">Planos da Plataforma</h3>
+      <button onclick="closePlansModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+    </div>
+    <div id="plansList" class="space-y-3 mb-6 max-h-[38vh] overflow-y-auto pr-2"></div>
+    <div class="border-t border-slate-700/50 pt-5">
+      <h4 class="text-sm font-semibold text-white mb-4" id="planFormTitle">Novo Plano</h4>
+      <input type="hidden" id="planFormId">
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1.5">Nome *</label>
+          <input type="text" id="planName" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm" placeholder="Profissional">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1.5">Preço (R$) *</label>
+          <input type="number" id="planPrice" step="0.01" min="0" class="input-dark w-full rounded-lg px-3 py-2.5 text-sm" placeholder="197.00">
+        </div>
+      </div>
+      <div class="flex gap-3 mt-4">
+        <button onclick="resetPlanForm()" class="flex-1 py-2.5 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-700 text-sm font-medium transition-colors">Limpar</button>
+        <button onclick="savePlan()" id="btnSavePlan" class="flex-1 btn-primary py-2.5 rounded-lg text-white text-sm font-medium flex items-center justify-center gap-2">
+          <i data-lucide="save" class="w-4 h-4"></i> Salvar Plano
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -982,6 +1018,85 @@ Esta ação não pode ser desfeita. Todos os dados (clientes, pets, agendamentos
   } catch (err) {
     toast('Erro ao remover loja', 'error');
   }
+}
+
+// ===================== PLANOS =====================
+function openPlansModal() {
+  document.getElementById('plansModal').classList.remove('hidden');
+  loadPlans().then(renderPlansList);
+}
+
+function closePlansModal() {
+  document.getElementById('plansModal').classList.add('hidden');
+  resetPlanForm();
+}
+
+function renderPlansList() {
+  const container = document.getElementById('plansList');
+  if (!plansCache.length) {
+    container.innerHTML = '<p class="text-slate-500 text-sm text-center py-6">Nenhum plano cadastrado. Crie o primeiro abaixo.</p>';
+    return;
+  }
+  container.innerHTML = plansCache.map(pl => `
+    <div class="card p-4 flex items-center justify-between">
+      <div>
+        <p class="text-sm font-medium text-white">${pl.name}</p>
+        <p class="text-xs text-slate-400">R$ ${parseFloat(pl.price || 0).toFixed(2)}</p>
+      </div>
+      <button onclick="editPlan('${pl.id}')" class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs transition-colors">Editar</button>
+    </div>
+  `).join('');
+}
+
+function editPlan(id) {
+  const pl = plansCache.find(x => x.id === id);
+  if (!pl) return;
+  document.getElementById('planFormId').value = pl.id;
+  document.getElementById('planName').value = pl.name || '';
+  document.getElementById('planPrice').value = parseFloat(pl.price || 0).toFixed(2);
+  document.getElementById('planFormTitle').textContent = 'Editar Plano';
+}
+
+function resetPlanForm() {
+  document.getElementById('planFormId').value = '';
+  document.getElementById('planName').value = '';
+  document.getElementById('planPrice').value = '';
+  document.getElementById('planFormTitle').textContent = 'Novo Plano';
+}
+
+async function savePlan() {
+  const id = document.getElementById('planFormId').value;
+  const name = document.getElementById('planName').value.trim();
+  const price = parseFloat(document.getElementById('planPrice').value);
+  if (!name || !price || price <= 0) { toast('Preencha nome e preço válidos', 'error'); return; }
+
+  const btn = document.getElementById('btnSavePlan');
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${state.apiUrl}/super-admin-subscription`, {
+      method: id ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.token}` },
+      body: JSON.stringify(id ? { plan_id: id, name, price } : { name, price })
+    });
+    if (res.status === 401) {
+      toast('Sessão expirada. Faça login novamente.', 'error');
+      setTimeout(() => logout(), 1500);
+      return;
+    }
+    const data = await res.json();
+    if (data.success) {
+      toast(data.message || 'Plano salvo!', 'success');
+      plansCache = [];
+      resetPlanForm();
+      await loadPlans();
+      renderPlansList();
+    } else {
+      toast(data.error || 'Erro ao salvar plano', 'error');
+    }
+  } catch (e) {
+    toast('Erro de conexão', 'error');
+  }
+  btn.disabled = false;
 }
 
 // ===================== UTILS =====================
