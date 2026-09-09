@@ -1601,7 +1601,7 @@ const subscription = {
   async check() {
     if (!state.isLoggedIn || state.useMock) return;
     try {
-      const res = await api.get('subscription');
+      const res = await api.get('unit-subscription');
       const sub = Array.isArray(res) ? res[0] : (res && (res.data || res.subscription)) || null;
       this.render(sub);
     } catch (e) {
