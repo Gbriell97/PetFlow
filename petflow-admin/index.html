@@ -566,7 +566,7 @@ async function manageUnit(unitId) {
     if (data.success) {
       state.currentUnitDetail = data.data;
       populateEditForm(data.data);
-      renderSubscription(data.data.subscription);
+      renderSubscriptionFromApi(unitId);
       renderUsers(data.data.users);
       renderHistory(data.data.audit_logs);
     }
@@ -752,7 +752,31 @@ async function loadPlans() {
   return plansCache;
 }
 
-async function renderSubscription(sub) {
+async function renderSubscriptionFromApi(unitId) {
+  try {
+    const res = await fetch(`${state.apiUrl}/super-admin-subscription?unit_id=${unitId}`, {
+      headers: { 'Authorization': `Bearer ${state.token}` }
+    });
+    if (res.status === 401) {
+      toast('Sessão expirada. Faça login novamente.', 'error');
+      setTimeout(() => logout(), 1500);
+      return;
+    }
+    const data = await res.json();
+    if (data.success) {
+      if (Array.isArray(data.data.plans)) plansCache = data.data.plans;
+      renderSubscription(data.data.subscription || null, data.data.history || []);
+    } else {
+      toast(data.error || 'Erro ao carregar assinatura', 'error');
+      renderSubscription(null);
+    }
+  } catch (e) {
+    toast('Erro de conexão ao carregar assinatura', 'error');
+    renderSubscription(null);
+  }
+}
+
+async function renderSubscription(sub, history = []) {
   const container = document.getElementById('subscriptionContent');
   const plans = await loadPlans();
 
@@ -834,6 +858,8 @@ async function renderSubscription(sub) {
       <p class="text-[11px] text-slate-500 mt-2 text-center">A nova data de fim atualiza automaticamente o aviso de vencimento no painel da loja.</p>
     </div>
   `;
+
+  container.innerHTML += renderSubHistoryHTML(history);
 
   if (sub) {
     setSel('subPlan', sub.plan_id);
@@ -1043,7 +1069,10 @@ function renderPlansList() {
         <p class="text-sm font-medium text-white">${pl.name}</p>
         <p class="text-xs text-slate-400">R$ ${parseFloat(pl.price || 0).toFixed(2)}</p>
       </div>
-      <button onclick="editPlan('${pl.id}')" class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs transition-colors">Editar</button>
+      <div class="flex items-center gap-2">
+        <button onclick="editPlan('${pl.id}')" class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs transition-colors">Editar</button>
+        <button onclick="deletePlan('${pl.id}', '${(pl.name || '').replace(/'/g, "\'")}')" class="px-3 py-1.5 rounded-lg bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 text-xs transition-colors">Excluir</button>
+      </div>
     </div>
   `).join('');
 }
@@ -1055,6 +1084,33 @@ function editPlan(id) {
   document.getElementById('planName').value = pl.name || '';
   document.getElementById('planPrice').value = parseFloat(pl.price || 0).toFixed(2);
   document.getElementById('planFormTitle').textContent = 'Editar Plano';
+}
+
+async function deletePlan(id, name) {
+  if (!confirm(`Excluir o plano "${name}"?\n\nSe houver assinaturas vinculadas, ele será apenas desativado.`)) return;
+  try {
+    const res = await fetch(`${state.apiUrl}/super-admin-subscription?plan_id=${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${state.token}` }
+    });
+    if (res.status === 401) {
+      toast('Sessão expirada. Faça login novamente.', 'error');
+      setTimeout(() => logout(), 1500);
+      return;
+    }
+    const data = await res.json();
+    if (data.success) {
+      toast(data.message || 'Plano removido!', 'success');
+      plansCache = [];
+      resetPlanForm();
+      await loadPlans();
+      renderPlansList();
+    } else {
+      toast(data.error || 'Erro ao excluir plano', 'error');
+    }
+  } catch (e) {
+    toast('Erro de conexão', 'error');
+  }
 }
 
 function resetPlanForm() {
@@ -1097,6 +1153,28 @@ async function savePlan() {
     toast('Erro de conexão', 'error');
   }
   btn.disabled = false;
+}
+
+function renderSubHistoryHTML(history) {
+  if (!history || history.length === 0) return '';
+  const cycleL = { MONTHLY: 'Mensal', QUARTERLY: 'Trimestral', YEARLY: 'Anual' };
+  const statusL = { ACTIVE: 'Ativa', RENEWAL_NEAR: 'Renovação Próxima', PAYMENT_PENDING: 'Pagamento Pendente', OVERDUE: 'Vencida', SUSPENDED: 'Suspensa', CANCELLED: 'Cancelada' };
+  return `
+    <div class="border-t border-slate-700/50 pt-4 mt-5">
+      <h4 class="text-sm font-semibold text-white mb-3">Histórico de Assinaturas</h4>
+      <div class="space-y-2 max-h-[230px] overflow-y-auto pr-1">
+        ${history.map((h, i) => `
+          <div class="flex items-center justify-between p-3 rounded-lg ${i === 0 ? 'bg-indigo-500/10 border border-indigo-500/30' : 'bg-slate-800/50'}">
+            <div>
+              <p class="text-sm font-medium text-white">${h.plan_name || 'Plano removido'} ${i === 0 ? '<span class="badge badge-active ml-1">ATUAL</span>' : ''}</p>
+              <p class="text-xs text-slate-400">R$ ${parseFloat(h.amount || 0).toFixed(2)}${h.billing_cycle ? ' · ' + (cycleL[h.billing_cycle] || h.billing_cycle) : ''}</p>
+              <p class="text-xs text-slate-500">${h.start_date ? new Date(h.start_date).toLocaleDateString('pt-BR') : '—'} até ${h.end_date ? new Date(h.end_date).toLocaleDateString('pt-BR') : '—'}</p>
+            </div>
+            <span class="badge ${h.status === 'ACTIVE' ? 'badge-active' : 'badge-inactive'}">${statusL[h.status] || h.status || '—'}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
 }
 
 // ===================== UTILS =====================
