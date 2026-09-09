@@ -98,6 +98,9 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
 .badge-error{background:rgba(244,63,94,0.15);color:#fb7185;}
 .badge-info{background:rgba(99,102,241,0.15);color:#a5b4fc;}
 .badge-secondary{background:rgba(148,163,184,0.15);color:#94a3b8;}
+.subscription-banner{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 24px;font-size:13px;font-weight:500;flex-shrink:0;}
+.subscription-banner.warning{background:rgba(245,158,11,0.15);color:#fbbf24;border-bottom:1px solid rgba(245,158,11,0.3);}
+.subscription-banner.danger{background:rgba(244,63,94,0.18);color:#fb7185;border-bottom:1px solid rgba(244,63,94,0.35);}
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;}
 .stat-card{padding:20px;}
 .stat-icon{width:40px;height:40px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;margin-bottom:12px;}
@@ -277,10 +280,6 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
         <label class="form-label">Senha</label>
         <input type="password" id="loginPassword" class="form-input" placeholder="••••••••">
       </div>
-      <div class="form-group">
-        <label class="form-label">URL da API (opcional)</label>
-        <input type="url" id="apiUrlInput" class="form-input" placeholder="https://...supabase.co/functions/v1" value="https://jnmtwalmfkcxixiwqbjm.supabase.co/functions/v1">
-      </div>
       <button type="submit" id="loginBtn" class="btn btn-primary btn-lg" style="width:100%;">
         <span id="loginBtnText">Entrar no Painel</span>
         <div id="loginSpinner" class="spinner" style="display:none;width:18px;height:18px;border-width:2px;"></div>
@@ -326,6 +325,7 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
     </div>
   </aside>
   <div class="main-content">
+    <div id="subscriptionBanner" class="subscription-banner" style="display:none;"></div>
     <header class="top-header">
       <div style="display:flex;align-items:center;gap:12px;">
         <button id="mobileMenuBtn" class="btn btn-ghost btn-sm" style="display:none;"><i data-lucide="menu" style="width:20px;height:20px;"></i></button>
@@ -1256,6 +1256,106 @@ const api = {
   delete(endpoint) { return this.request(endpoint, { method: 'DELETE' }); },
 };
 
+// ==================== DATA LAYER (backend real) ====================
+const SIZE_LABEL = { SMALL: 'Pequeno', MEDIUM: 'Médio', LARGE: 'Grande' };
+
+function unitTz() { return (state.unit && state.unit.timezone) || 'America/Sao_Paulo'; }
+
+// Converte data+hora locais (fuso da unidade) para ISO UTC
+function zonedTimeToUtc(dateStr, timeStr, timeZone) {
+  const wall = new Date(dateStr + 'T' + timeStr + ':00');
+  const asUtc = new Date(wall.toLocaleString('en-US', { timeZone: 'UTC' }));
+  const asTz = new Date(wall.toLocaleString('en-US', { timeZone }));
+  return new Date(wall.getTime() + (asUtc.getTime() - asTz.getTime())).toISOString();
+}
+
+async function fetchAppointments() {
+  const res = await api.get('appointments-list');
+  const list = (res && res.data && res.data.appointments) || res.appointments || [];
+  return flattenAppointments(list);
+}
+
+function flattenAppointments(list) {
+  const out = [];
+  for (const appt of list) {
+    const items = appt.items || [];
+    const first = items[0] || {};
+    const startIso = first.start_time || appt.created_at;
+    const start = startIso ? new Date(startIso) : null;
+    out.push({
+      id: appt.id,
+      date: start ? start.toLocaleDateString('sv-SE', { timeZone: unitTz() }) : '',
+      time: start ? start.toLocaleTimeString('sv-SE', { timeZone: unitTz(), hour12: false }) : '',
+      status: appt.status,
+      customer_name: appt.customer ? appt.customer.name : null,
+      customer_phone: appt.customer ? appt.customer.phone : null,
+      pet_name: first.pet ? first.pet.name : null,
+      pet_species: first.pet ? first.pet.species : null,
+      pet_breed: first.pet ? first.pet.breed : null,
+      service_name: first.service ? first.service.name : null,
+      service_duration: first.duration_minutes || appt.total_duration_minutes || 60,
+      employee_name: first.employee ? first.employee.name : null,
+      price: first.price != null ? first.price : (appt.total_price || 0),
+      notes: appt.notes || null,
+      created_at: appt.created_at,
+      items_count: items.length,
+    });
+  }
+  return out;
+}
+
+async function fetchCustomers() {
+  const res = await api.get('customers-list');
+  const list = res && res.data ? res.data : [];
+  return list.map(c => Object.assign({}, c, {
+    pets: (c.pets || []).map(pet => Object.assign({}, pet, { size: SIZE_LABEL[pet.size] || pet.size }))
+  }));
+}
+
+async function fetchServices() {
+  const res = await api.get('services');
+  const list = (res && res.data && res.data.services) || [];
+  return list.map(s => ({
+    id: s.id,
+    name: s.name,
+    description: s.description,
+    duration_minutes: s.durations_by_size && s.durations_by_size[0] ? parseInt(s.durations_by_size[0].duration_minutes) : (s.default_duration_minutes || 60),
+    capacity: s.capacity || 1,
+    is_active: true,
+    prices: (s.prices_by_size || []).map(r => ({
+      pet_size: SIZE_LABEL[r.criteria && r.criteria.size] || r.name || (r.criteria && r.criteria.size),
+      price: parseFloat(r.price),
+    })),
+  }));
+}
+
+async function fetchEmployees() {
+  const res = await api.get('employees-list');
+  return (res && res.data) || [];
+}
+
+async function fetchBusinessHours() {
+  const res = await api.get('business-hours');
+  const list = (res && res.data) || [];
+  return list.map(h => Object.assign({}, h, {
+    is_open: !h.is_closed,
+    open_time: (h.open_time || '').slice(0, 5),
+    close_time: (h.close_time || '').slice(0, 5),
+  }));
+}
+
+async function fetchBlocks() {
+  const res = await api.get('blocks');
+  const list = (res && res.data) || [];
+  return list.map(b => ({
+    id: b.id,
+    start_date: (b.start_datetime || '').slice(0, 10),
+    end_date: (b.end_datetime || '').slice(0, 10),
+    reason: b.reason,
+    type: b.period_type || 'other',
+  }));
+}
+
 // ==================== TOAST ====================
 function showToast(type, title, message, duration = 4000) {
   const container = document.getElementById('toastContainer');
@@ -1324,12 +1424,6 @@ const auth = {
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('appLayout').style.display = 'none';
     document.getElementById('pageLoader').classList.add('hidden');
-    const savedUrl = localStorage.getItem('petflow_apiUrl');
-    const savedKey = localStorage.getItem('petflow_apiKey');
-    const savedMock = localStorage.getItem('petflow_useMock');
-    if (savedUrl) document.getElementById('apiUrl').value = savedUrl;
-    if (savedKey) document.getElementById('apiKey').value = savedKey;
-    if (savedMock !== null) document.getElementById('useMockData').checked = savedMock === 'true';
     lucide.createIcons();
   },
   async tryAutoLogin() {
@@ -1341,11 +1435,9 @@ const auth = {
         state.unit = userUnit;
         state.apiKey = userUnit.api_key || state.apiKey;
       }
-      // Tenta buscar dados da unidade pela API
-      const unit = await api.get('unit');
-      if (unit) state.unit = unit;
+      // Dados da unidade já vêm no auth-login (state.unit acima)
       state.isLoggedIn = true;
-      localStorage.setItem('petflow_lastEmail', email);
+      localStorage.setItem('petflow_lastEmail', (state.user && state.user.email) || '');
       this.updateApiStatus('online');
       this.showApp();
       showToast('success', 'Bem-vindo de volta!', `Conectado a ${state.unit?.name || 'sua unidade'}`);
@@ -1358,7 +1450,6 @@ const auth = {
   async login() {
     const emailInput = document.getElementById('loginEmail');
     const passwordInput = document.getElementById('loginPassword');
-    const urlInput = document.getElementById('apiUrlInput');
     const btn = document.getElementById('loginBtn');
     const btnText = document.getElementById('loginBtnText');
     const spinner = document.getElementById('loginSpinner');
@@ -1367,7 +1458,7 @@ const auth = {
 
     const email = emailInput.value.trim();
     const password = passwordInput.value;
-    const apiUrl = (urlInput.value || 'https://jnmtwalmfkcxixiwqbjm.supabase.co/functions/v1').trim().replace(/\/$/, '');
+    const apiUrl = CONFIG.defaultApiUrl;
 
     if (!email || !password) {
       errorBox.style.display = 'flex';
@@ -1436,6 +1527,7 @@ const auth = {
     if (state.user) document.getElementById('userName').textContent = state.user.name || state.user.email || 'Usuário';
     this.initSidebar();
     router.navigate(state.currentRoute);
+    subscription.startAutoCheck();
   },
   logout() {
     localStorage.removeItem('petflow_token');
@@ -1495,6 +1587,110 @@ const auth = {
   },
 };
 
+// ==================== ASSINATURA ====================
+const subscription = {
+  blocked: false,
+  timer: null,
+
+  startAutoCheck() {
+    this.check();
+    if (this.timer) clearInterval(this.timer);
+    this.timer = setInterval(() => this.check(), 60 * 60 * 1000); // recheck a cada 1h
+  },
+
+  async check() {
+    if (!state.isLoggedIn || state.useMock) return;
+    try {
+      const res = await api.get('subscription');
+      const sub = Array.isArray(res) ? res[0] : (res && (res.data || res.subscription)) || null;
+      this.render(sub);
+    } catch (e) {
+      // Falha na verificação NÃO bloqueia o painel (fail-open)
+      console.warn('Verificação de assinatura indisponível:', e.message);
+    }
+  },
+
+  render(sub) {
+    const banner = document.getElementById('subscriptionBanner');
+    if (!banner) return;
+
+    const status = ((sub && sub.status) || '').toUpperCase();
+
+    if (!sub || !sub.end_date || status === 'TRIAL') {
+      this.unblock();
+      banner.style.display = 'none';
+      return;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const end = new Date(sub.end_date + 'T00:00:00');
+    const daysLeft = Math.round((end - today) / (1000 * 60 * 60 * 24));
+
+    if (daysLeft < 0 || status === 'EXPIRED' || status === 'CANCELLED' || status === 'SUSPENDED') {
+      this.block(sub, daysLeft);
+      return;
+    }
+
+    if (daysLeft <= 3) {
+      banner.className = 'subscription-banner danger';
+      banner.innerHTML = `<i data-lucide="alert-triangle" style="width:16px;height:16px;flex-shrink:0;"></i><span>Sua assinatura ${daysLeft === 0 ? '<strong>vence hoje</strong>' : `vence em <strong>${daysLeft} dia(s)</strong>`} (${formatDate(sub.end_date)}). Renove para não perder o acesso.</span>`;
+      banner.style.display = 'flex';
+      lucide.createIcons({ nodes: [banner] });
+      this.unblock();
+      return;
+    }
+
+    if (daysLeft <= 7) {
+      banner.className = 'subscription-banner warning';
+      banner.innerHTML = `<i data-lucide="clock" style="width:16px;height:16px;flex-shrink:0;"></i><span>Sua assinatura vence em <strong>${daysLeft} dias</strong> (${formatDate(sub.end_date)}).</span>`;
+      banner.style.display = 'flex';
+      lucide.createIcons({ nodes: [banner] });
+      this.unblock();
+      return;
+    }
+
+    this.unblock();
+    banner.style.display = 'none';
+  },
+
+  block(sub, daysLeft) {
+    this.blocked = true;
+    document.getElementById('appLayout').style.display = 'none';
+    const old = document.getElementById('subscriptionExpiredOverlay');
+    if (old) old.remove();
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay visible';
+    overlay.id = 'subscriptionExpiredOverlay';
+    overlay.innerHTML = `
+      <div class="modal-content" style="max-width:440px;">
+        <div class="modal-body" style="text-align:center;">
+          <div style="width:64px;height:64px;border-radius:50%;background:rgba(244,63,94,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;color:#fb7185;">
+            <i data-lucide="shield-alert" style="width:32px;height:32px;"></i>
+          </div>
+          <h3 style="font-size:18px;font-weight:700;margin-bottom:8px;">Assinatura vencida</h3>
+          <p style="font-size:14px;color:var(--text-secondary);line-height:1.6;margin-bottom:8px;">
+            Sua assinatura venceu${daysLeft < 0 ? ` há <strong>${Math.abs(daysLeft)} dia(s)</strong>` : ''} em <strong>${formatDate(sub.end_date)}</strong>.
+          </p>
+          <p style="font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:20px;">
+            Entre em contato com o suporte para renovar seu plano e voltar a usar o painel.
+          </p>
+          <button class="btn btn-primary btn-lg" style="width:100%;" onclick="auth.logout()">Sair do painel</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    lucide.createIcons({ nodes: [overlay] });
+  },
+
+  unblock() {
+    if (!this.blocked) return;
+    this.blocked = false;
+    const overlay = document.getElementById('subscriptionExpiredOverlay');
+    if (overlay) overlay.remove();
+    if (state.isLoggedIn) document.getElementById('appLayout').style.display = 'flex';
+  },
+};
+
 // ==================== DASHBOARD ====================
 let dashboardPeriod = 'today';
 let dashboardCharts = {};
@@ -1550,9 +1746,7 @@ async function initDashboard() {
   document.getElementById('todayDate').textContent = today.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
 
   try {
-    const [appts, unit] = await Promise.all([api.get('appointments'), api.get('unit').catch(() => null)]);
-    state.data.appointments = Array.isArray(appts) ? appts : (appts.data || []);
-    if (unit) state.unit = unit;
+    state.data.appointments = await fetchAppointments();
 
     const periodAppts = filterByPeriod(state.data.appointments, dashboardPeriod);
     const { prevStart, prevEnd } = getPeriodDates(dashboardPeriod);
@@ -1793,15 +1987,15 @@ let apptFiltered = [];
 async function initAppointments() {
   try {
     const [appts, customers, services, employees] = await Promise.all([
-      api.get('appointments'),
-      api.get('customers').catch(() => []),
-      api.get('services').catch(() => []),
-      api.get('employees').catch(() => [])
+      fetchAppointments(),
+      fetchCustomers(),
+      fetchServices(),
+      fetchEmployees()
     ]);
-    state.data.appointments = Array.isArray(appts) ? appts : (appts.data || []);
-    state.data.customers = Array.isArray(customers) ? customers : (customers.data || []);
-    state.data.services = Array.isArray(services) ? services : (services.data || []);
-    state.data.employees = Array.isArray(employees) ? employees : (employees.data || []);
+    state.data.appointments = appts;
+    state.data.customers = customers;
+    state.data.services = services;
+    state.data.employees = employees;
     apptFiltered = [...state.data.appointments];
     sortAppointmentsInternal();
     renderAppointmentsTable();
@@ -1936,10 +2130,9 @@ function confirmUpdateApptStatus(id, newStatus, message) {
 
 async function updateApptStatus(id, newStatus) {
   try {
-    await api.patch(`appointments/${id}/status`, { status: newStatus });
+    await api.patch(`appointments-status?id=${id}`, { status: newStatus });
     showToast('success', 'Status atualizado', `Agendamento ${formatStatus(newStatus).toLowerCase()}.`);
-    const appts = await api.get('appointments');
-    state.data.appointments = Array.isArray(appts) ? appts : (appts.data || []);
+    state.data.appointments = await fetchAppointments();
     filterAppointments();
     if (state.currentRoute === 'dashboard') initDashboard();
   } catch (e) {
@@ -2163,21 +2356,13 @@ async function saveNewAppointment() {
   const service = state.data.services.find(s => s.id === serviceId);
   const employee = state.data.employees.find(e => e.id === employeeId);
 
-  const newAppt = {
-    id: 'appt-' + Date.now(),
-    date,
-    time: time + ':00',
-    status,
-    customer_name: customer?.name,
-    customer_phone: customer?.phone,
-    pet_name: pet?.name,
-    pet_species: pet?.species,
-    pet_breed: pet?.breed,
-    service_name: service?.name,
-    service_duration: service?.duration_minutes,
-    employee_name: employee?.name,
-    price,
-    notes
+  const backendPayload = {
+    customer_id: customerId,
+    service_ids: [serviceId],
+    pet_ids: [petId],
+    start_datetime: zonedTimeToUtc(date, time, unitTz()),
+    employee_id: employeeId || null,
+    notes: notes || null,
   };
 
   btn.disabled = true;
@@ -2185,16 +2370,10 @@ async function saveNewAppointment() {
   spinner.style.display = 'block';
 
   try {
-    if (state.useMock) {
-      await new Promise(r => setTimeout(r, 500));
-      MOCK_DATA.appointments.push(newAppt);
-    } else {
-      await api.post('appointments', newAppt);
-    }
+    await api.post('appointments', backendPayload);
     showToast('success', 'Agendamento criado', `${customer?.name} — ${pet?.name} às ${time}`);
     closeNewAppointmentModal();
-    const appts = await api.get('appointments');
-    state.data.appointments = Array.isArray(appts) ? appts : (appts.data || []);
+    state.data.appointments = await fetchAppointments();
     filterAppointments();
     if (state.currentRoute === 'dashboard') initDashboard();
   } catch (e) {
@@ -2247,8 +2426,7 @@ const DAY_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 async function initSchedule() {
   try {
-    const hours = await api.get('business-hours');
-    state.data.businessHours = Array.isArray(hours) ? hours : (hours.data || []);
+    state.data.businessHours = await fetchBusinessHours();
     renderScheduleTable();
     renderSchedulePreview();
   } catch (e) {
@@ -2362,11 +2540,10 @@ async function saveSchedule() {
       await new Promise(r => setTimeout(r, 400));
       MOCK_DATA['business-hours'] = data;
     } else {
-      await api.patch('business-hours', { hours: data });
+      await api.put('business-hours', { hours: data });
     }
     showToast('success', 'Horários salvos', 'Os horários de funcionamento foram atualizados.');
-    const hours = await api.get('business-hours');
-    state.data.businessHours = Array.isArray(hours) ? hours : (hours.data || []);
+    state.data.businessHours = await fetchBusinessHours();
   } catch (e) {
     showToast('error', 'Erro ao salvar', e.message);
   }
@@ -2375,8 +2552,7 @@ async function saveSchedule() {
 // ==================== BLOCKS ====================
 async function initBlocks() {
   try {
-    const blocks = await api.get('blocked-periods');
-    state.data.blockedPeriods = Array.isArray(blocks) ? blocks : (blocks.data || []);
+    state.data.blockedPeriods = await fetchBlocks();
     renderBlocks(state.data.blockedPeriods);
   } catch (e) {
     showToast('error', 'Erro ao carregar bloqueios', e.message);
@@ -2471,11 +2647,10 @@ async function saveBlock() {
   if (start > end) { showToast('warning', 'Datas inválidas', 'A data de início não pode ser posterior à data de término.'); return; }
 
   const data = {
-    id: id || 'block-' + Date.now(),
-    start_date: start,
-    end_date: end,
+    start_datetime: start + 'T00:00:00',
+    end_datetime: end + 'T23:59:59',
     reason,
-    type
+    period_type: type
   };
 
   btn.disabled = true; btnText.style.display = 'none'; spinner.style.display = 'block';
@@ -2485,12 +2660,11 @@ async function saveBlock() {
       if (id) { const idx = MOCK_DATA['blocked-periods'].findIndex(b => b.id === id); if (idx >= 0) MOCK_DATA['blocked-periods'][idx] = data; }
       else { MOCK_DATA['blocked-periods'].push(data); }
     } else {
-      if (id) await api.patch(`blocked-periods/${id}`, data); else await api.post('blocked-periods', data);
+      if (id) await api.patch(`blocks?id=${id}`, data); else await api.post('blocks', data);
     }
     showToast('success', id ? 'Bloqueio atualizado' : 'Bloqueio criado', `${reason} — ${formatDate(start)}${start !== end ? ' a ' + formatDate(end) : ''}`);
     closeBlockFormModal();
-    const blocks = await api.get('blocked-periods');
-    state.data.blockedPeriods = Array.isArray(blocks) ? blocks : (blocks.data || []);
+    state.data.blockedPeriods = await fetchBlocks();
     renderBlocks(state.data.blockedPeriods);
   } catch (e) {
     showToast('error', 'Erro ao salvar', e.message);
@@ -2508,11 +2682,10 @@ async function deleteBlock(id) {
       await new Promise(r => setTimeout(r, 300));
       MOCK_DATA['blocked-periods'] = MOCK_DATA['blocked-periods'].filter(b => b.id !== id);
     } else {
-      await api.delete(`blocked-periods/${id}`);
+      await api.delete(`blocks?id=${id}`);
     }
     showToast('success', 'Bloqueio removido', 'O período foi liberado na agenda.');
-    const blocks = await api.get('blocked-periods');
-    state.data.blockedPeriods = Array.isArray(blocks) ? blocks : (blocks.data || []);
+    state.data.blockedPeriods = await fetchBlocks();
     renderBlocks(state.data.blockedPeriods);
   } catch (e) {
     showToast('error', 'Erro ao excluir', e.message);
@@ -2523,8 +2696,7 @@ async function deleteBlock(id) {
 // ==================== SERVICES ====================
 async function initServices() {
   try {
-    const services = await api.get('services');
-    state.data.services = Array.isArray(services) ? services : (services.data || []);
+    state.data.services = await fetchServices();
     renderServices(state.data.services);
     document.getElementById('serviceSearch').addEventListener('input', debounce(filterServices, 300));
     document.getElementById('serviceStatusFilter').addEventListener('change', filterServices);
@@ -2721,12 +2893,11 @@ async function saveService() {
       if (id) { const idx = MOCK_DATA.services.findIndex(s => s.id === id); if (idx >= 0) MOCK_DATA.services[idx] = data; }
       else { MOCK_DATA.services.push(data); }
     } else {
-      if (id) await api.patch(`services/${id}`, data); else await api.post('services', data);
+      if (id) await api.patch(`services-manage?id=${id}`, data); else await api.post('services-manage', data);
     }
     showToast('success', id ? 'Serviço atualizado' : 'Serviço criado', `${name} salvo com sucesso.`);
     closeServiceFormModal();
-    const services = await api.get('services');
-    state.data.services = Array.isArray(services) ? services : (services.data || []);
+    state.data.services = await fetchServices();
     renderServices(state.data.services);
   } catch (e) {
     showToast('error', 'Erro ao salvar', e.message);
@@ -2744,11 +2915,10 @@ async function deleteService(id) {
       await new Promise(r => setTimeout(r, 300));
       MOCK_DATA.services = MOCK_DATA.services.filter(s => s.id !== id);
     } else {
-      await api.delete(`services/${id}`);
+      await api.delete(`services-manage?id=${id}`);
     }
     showToast('success', 'Serviço excluído', 'O serviço foi removido.');
-    const services = await api.get('services');
-    state.data.services = Array.isArray(services) ? services : (services.data || []);
+    state.data.services = await fetchServices();
     renderServices(state.data.services);
   } catch (e) {
     showToast('error', 'Erro ao excluir', e.message);
@@ -2758,8 +2928,7 @@ async function deleteService(id) {
 // ==================== EMPLOYEES ====================
 async function initEmployees() {
   try {
-    const employees = await api.get('employees');
-    state.data.employees = Array.isArray(employees) ? employees : (employees.data || []);
+    state.data.employees = await fetchEmployees();
     renderEmployees(state.data.employees);
     document.getElementById('employeeSearch').addEventListener('input', debounce(filterEmployees, 300));
   } catch (e) {
@@ -2928,12 +3097,11 @@ async function saveEmployee() {
       if (id) { const idx = MOCK_DATA.employees.findIndex(e => e.id === id); if (idx >= 0) MOCK_DATA.employees[idx] = data; }
       else { MOCK_DATA.employees.push(data); }
     } else {
-      if (id) await api.patch(`employees/${id}`, data); else await api.post('employees', data);
+      if (id) await api.patch(`employees-list?id=${id}`, data); else await api.post('employees-list', data);
     }
     showToast('success', id ? 'Funcionário atualizado' : 'Funcionário criado', `${name} salvo com sucesso.`);
     closeEmployeeFormModal();
-    const employees = await api.get('employees');
-    state.data.employees = Array.isArray(employees) ? employees : (employees.data || []);
+    state.data.employees = await fetchEmployees();
     renderEmployees(state.data.employees);
   } catch (e) {
     showToast('error', 'Erro ao salvar', e.message);
@@ -2951,11 +3119,10 @@ async function deleteEmployee(id) {
       await new Promise(r => setTimeout(r, 300));
       MOCK_DATA.employees = MOCK_DATA.employees.filter(e => e.id !== id);
     } else {
-      await api.delete(`employees/${id}`);
+      await api.delete(`employees-list?id=${id}`);
     }
     showToast('success', 'Funcionário excluído', 'O funcionário foi removido.');
-    const employees = await api.get('employees');
-    state.data.employees = Array.isArray(employees) ? employees : (employees.data || []);
+    state.data.employees = await fetchEmployees();
     renderEmployees(state.data.employees);
     if (state.currentRoute === 'dashboard') initDashboard();
   } catch (e) {
@@ -2966,8 +3133,7 @@ async function deleteEmployee(id) {
 // ==================== CUSTOMERS ====================
 async function initCustomers() {
   try {
-    const customers = await api.get('customers');
-    state.data.customers = Array.isArray(customers) ? customers : (customers.data || []);
+    state.data.customers = await fetchCustomers();
     renderCustomers(state.data.customers);
     document.getElementById('customerSearch').addEventListener('input', debounce(() => {
       const search = document.getElementById('customerSearch').value.toLowerCase();
@@ -3148,12 +3314,11 @@ async function saveCustomer() {
       if (id) { const idx = MOCK_DATA.customers.findIndex(c => c.id === id); if (idx >= 0) MOCK_DATA.customers[idx] = data; }
       else { MOCK_DATA.customers.push(data); }
     } else {
-      if (id) await api.patch(`customers/${id}`, data); else await api.post('customers', data);
+      if (id) await api.patch(`customers-list?id=${id}`, data); else await api.post('customers-list', data);
     }
     showToast('success', id ? 'Cliente atualizado' : 'Cliente criado', `${name} salvo com sucesso.`);
     closeCustomerFormModal();
-    const customers = await api.get('customers');
-    state.data.customers = Array.isArray(customers) ? customers : (customers.data || []);
+    state.data.customers = await fetchCustomers();
     renderCustomers(state.data.customers);
   } catch (e) {
     showToast('error', 'Erro ao salvar', e.message);
@@ -3175,11 +3340,10 @@ async function deleteCustomer(id) {
         return !cust || a.customer_name !== cust.name;
       });
     } else {
-      await api.delete(`customers/${id}`);
+      await api.delete(`customers-list?id=${id}`);
     }
     showToast('success', 'Cliente excluído', 'O cliente foi removido.');
-    const customers = await api.get('customers');
-    state.data.customers = Array.isArray(customers) ? customers : (customers.data || []);
+    state.data.customers = await fetchCustomers();
     renderCustomers(state.data.customers);
     if (state.currentRoute === 'dashboard') initDashboard();
   } catch (e) {
@@ -3190,8 +3354,7 @@ async function deleteCustomer(id) {
 // ==================== PETS ====================
 async function initPets() {
   try {
-    const customers = await api.get('customers');
-    state.data.customers = Array.isArray(customers) ? customers : (customers.data || []);
+    state.data.customers = await fetchCustomers();
     renderPets(getAllPets());
     document.getElementById('petSearch').addEventListener('input', debounce(filterPets, 300));
     document.getElementById('petSpeciesFilter').addEventListener('change', filterPets);
@@ -3372,7 +3535,7 @@ async function savePet() {
     species,
     breed,
     size,
-    weight: parseFloat(document.getElementById('petFormWeight').value) || null,
+    weight_kg: parseFloat(document.getElementById('petFormWeight').value) || 0,
     color: document.getElementById('petFormColor').value.trim()
   };
 
@@ -3397,13 +3560,12 @@ async function savePet() {
         owner.pets.push(data);
       }
     } else {
-      if (id) await api.patch(`pets/${id}`, { ...data, owner_id: ownerId });
-      else await api.post('pets', { ...data, owner_id: ownerId });
+      if (id) await api.patch(`pets?id=${id}`, { ...data, customer_id: ownerId });
+      else await api.post('pets', { ...data, customer_id: ownerId });
     }
     showToast('success', id ? 'Pet atualizado' : 'Pet criado', `${name} salvo com sucesso.`);
     closePetFormModal();
-    const customers = await api.get('customers');
-    state.data.customers = Array.isArray(customers) ? customers : (customers.data || []);
+    state.data.customers = await fetchCustomers();
     if (state.currentRoute === 'customers') renderCustomers(state.data.customers);
     if (state.currentRoute === 'pets') renderPets(getAllPets());
   } catch (e) {
@@ -3424,11 +3586,10 @@ async function deletePet(id) {
         if (c.pets) c.pets = c.pets.filter(p => p.id !== id);
       });
     } else {
-      await api.delete(`pets/${id}`);
+      await api.delete(`pets?id=${id}`);
     }
     showToast('success', 'Pet excluído', 'O pet foi removido.');
-    const customers = await api.get('customers');
-    state.data.customers = Array.isArray(customers) ? customers : (customers.data || []);
+    state.data.customers = await fetchCustomers();
     if (state.currentRoute === 'customers') renderCustomers(state.data.customers);
     if (state.currentRoute === 'pets') renderPets(getAllPets());
     if (state.currentRoute === 'dashboard') initDashboard();
@@ -3444,9 +3605,16 @@ async function initDiagnostic() {
 }
 
 async function runDiagnosticTests() {
-  const endpoints = ['unit', 'appointments', 'customers', 'services', 'employees', 'business-hours'];
-  for (const ep of endpoints) {
-    const badge = document.getElementById(`test-${ep}`);
+  const endpoints = [
+    { ep: 'business-hours', badge: 'test-business-hours' },
+    { ep: 'appointments-list', badge: 'test-appointments' },
+    { ep: 'customers-list', badge: 'test-customers' },
+    { ep: 'services', badge: 'test-services' },
+    { ep: 'employees-list', badge: 'test-employees' },
+    { ep: 'blocks', badge: 'test-blocks' },
+  ];
+  for (const { ep, badge: badgeId } of endpoints) {
+    const badge = document.getElementById(badgeId);
     if (!badge) continue;
     badge.className = 'badge badge-warning';
     badge.textContent = 'Testando...';
