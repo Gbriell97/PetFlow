@@ -1232,7 +1232,7 @@ const api = {
     const url = `${state.apiUrl}/${endpoint}`;
     const headers = {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${state.token}`,
+      'Authorization': `Bearer ${state.apiKey || state.token}`,
       'x-api-key': state.apiKey,
       ...options.headers
     };
