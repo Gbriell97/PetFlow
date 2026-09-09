@@ -1117,6 +1117,16 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
         Para trocar de plano ou ajustar o vencimento, fale com o suporte da plataforma.
       </div>
     </div>
+    <div class="card">
+      <div class="card-header"><div><div class="card-title">Segurança</div><div class="card-subtitle">Troque sua senha de acesso ao painel</div></div><i data-lucide="lock" style="width:20px;height:20px;color:var(--text-muted);"></i></div>
+      <div class="form-group"><label class="form-label">Senha Atual *</label><input type="password" id="cfgCurPass" class="form-input" placeholder="••••••••" autocomplete="current-password"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Nova Senha *</label><input type="password" id="cfgNewPass" class="form-input" placeholder="Mínimo 6 caracteres" autocomplete="new-password"></div>
+        <div class="form-group"><label class="form-label">Confirmar Nova Senha *</label><input type="password" id="cfgConfPass" class="form-input" placeholder="Repita a nova senha" autocomplete="new-password"></div>
+      </div>
+      <button class="btn btn-primary" id="cfgPassBtn" onclick="changePassword()" style="width:100%;"><i data-lucide="key-round" style="width:16px;height:16px;"></i> Trocar Senha</button>
+      <p style="font-size:11px;color:var(--text-muted);margin-top:10px;line-height:1.5;">Dica: use a nova senha no próximo login. Se esquecer a senha, fale com o suporte da plataforma para redefinir.</p>
+    </div>
   </div>
 </div>
 </template>
@@ -3722,6 +3732,37 @@ async function saveSettings() {
     document.getElementById('unitName').textContent = payload.name;
   } catch (e) {
     showToast('error', 'Erro ao salvar', e.message);
+  }
+  btn.disabled = false;
+}
+
+async function changePassword() {
+  const cur = document.getElementById('cfgCurPass').value;
+  const nw = document.getElementById('cfgNewPass').value;
+  const conf = document.getElementById('cfgConfPass').value;
+  if (!cur || !nw) { showToast('warning', 'Campos obrigatórios', 'Preencha a senha atual e a nova senha.'); return; }
+  if (nw.length < 6) { showToast('warning', 'Senha muito curta', 'A nova senha precisa de pelo menos 6 caracteres.'); return; }
+  if (nw !== conf) { showToast('warning', 'Senhas não conferem', 'A confirmação está diferente da nova senha.'); return; }
+
+  const btn = document.getElementById('cfgPassBtn');
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${state.apiUrl}/auth-change-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.token}` },
+      body: JSON.stringify({ current_password: cur, new_password: nw })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('success', 'Senha alterada!', 'Use a nova senha no próximo login.');
+      document.getElementById('cfgCurPass').value = '';
+      document.getElementById('cfgNewPass').value = '';
+      document.getElementById('cfgConfPass').value = '';
+    } else {
+      showToast('error', 'Erro ao trocar senha', (data && data.error) || 'Tente novamente.');
+    }
+  } catch (e) {
+    showToast('error', 'Erro de conexão', e.message);
   }
   btn.disabled = false;
 }
