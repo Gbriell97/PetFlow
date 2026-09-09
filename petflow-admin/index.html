@@ -521,6 +521,11 @@ async function manageUnit(unitId) {
     const res = await fetch(`${state.apiUrl}/super-admin-unit-detail?id=${unitId}`, {
       headers: { 'Authorization': `Bearer ${state.token}` }
     });
+    if (res.status === 401) {
+      toast('Sessão expirada. Faça login novamente.', 'error');
+      setTimeout(() => logout(), 1500);
+      return;
+    }
     const data = await res.json();
     if (data.success) {
       state.currentUnitDetail = data.data;
@@ -697,6 +702,11 @@ async function loadPlans() {
     const res = await fetch(`${state.apiUrl}/super-admin-subscription`, {
       headers: { 'Authorization': `Bearer ${state.token}` }
     });
+    if (res.status === 401) {
+      toast('Sessão expirada. Faça login novamente.', 'error');
+      setTimeout(() => logout(), 1500);
+      return [];
+    }
     const data = await res.json();
     if (data.success && Array.isArray(data.data)) plansCache = data.data;
     else if (!data.success) toast(data.error || 'Erro ao carregar planos', 'error');
