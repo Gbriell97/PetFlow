@@ -87,21 +87,21 @@ n8n/
 | `AVISA_API_KEY` | Bearer da AvisaAPI (envio de mensagens) |
 | `WEBHOOK_URL` | URL pública do n8n (para referência nos webhooks) |
 
-## Multi-loja (Decisão 10) — IMPLEMENTADO
+## Multi-loja (Decisão 10) — IMPLEMENTADO (N:N)
 
-Cada loja tem seu próprio número conectado na AvisaAPI. O vínculo número → unidade
-fica na tabela `whatsapp_connections` (migration em `supabase/migrations/`) e é
-gerenciado no **Painel Admin → Gerenciar Loja → aba WhatsApp**.
+Um número pode atender **várias unidades** e uma unidade pode ter vários números.
+O vínculo fica na tabela `whatsapp_connections` e é gerenciado no
+**Painel Admin → Gerenciar Loja → aba WhatsApp**.
 
-Fluxo de resolução no `chat-handler` (recebe `storePhone`/`instance` do workflow 01):
-1. Busca conexão ativa pelo número da loja (com variações com/sem DDI 55)
-2. Se não achar, busca por `instance_name` (nome da instância na AvisaAPI)
-3. Se não achar, busca `units.phone` direto
-4. Fallback: unidade padrão (`DEFAULT_UNIT_API_KEY`, env da edge function)
-
-Com a unidade resolvida, o chat-handler usa a `api_key` dela em todas as tools —
-o agendamento cai no painel da loja certa. As conversas ficam isoladas por loja
-(`chat_sessions.session_id = <unit_id>:<telefone_cliente>`).
+Fluxo no `chat-handler` (recebe `storePhone`/`instance` do workflow 01):
+1. Resolve TODAS as unidades do número: conexões ativas por telefone (com/sem DDI 55)
+   → `instance_name` → `units.phone` direto → fallback unidade padrão (`DEFAULT_UNIT_API_KEY`)
+2. **1 unidade** → atende direto, com a `api_key` dela
+3. **N unidades** → envia menu numerado ("Responda com o número da unidade"); a escolha
+   fica gravada na sessão `sel:<numero_loja>:<numero_cliente>` (coluna `unit_id` em
+   `chat_sessions`) e vale para toda a conversa — não pergunta de novo
+4. Com a unidade definida, todas as tools usam a `api_key` dela — o agendamento cai
+   no painel certo. Conversas isoladas por loja (`<unit_id>:<telefone>`).
 
 > ⚠️ **Importar/reimportar o workflow 01** após esta mudança (o nó *Extrair mensagem*
 > agora envia `storePhone`/`instance` ao chat-handler).

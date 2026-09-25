@@ -55,6 +55,9 @@ serve(async (req) => {
       return new Response(JSON.stringify({ success: false, error: "Erro ao excluir unidade: " + unitErr.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // Desativa os vínculos WhatsApp da loja (o número deixa de rotear para ela)
+    await supabase.from("whatsapp_connections").update({ active: false }).eq("unit_id", unitId);
+
     return new Response(JSON.stringify({ success: true, message: "Loja excluída com sucesso" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (err: any) {

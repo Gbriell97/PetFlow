@@ -1,12 +1,15 @@
 // Edge Function: chat-handler
 // Recebe mensagem do cliente, processa com IA, consulta banco, retorna resposta.
-// MULTI-LOJA (Decisão 10): resolve a unidade pelo número da loja que recebeu a
-// mensagem (whatsapp_connections) e usa a api_key da unidade em todas as tools.
-// Fallback para unidade padrão via env DEFAULT_UNIT_API_KEY.
+// MULTI-LOJA N:N (Decisão 10): um número pode atender várias unidades.
+//   - Resolve TODAS as unidades do número (whatsapp_connections)
+//   - 1 unidade  → atende direto
+//   - N unidades → pergunta qual o cliente quer; a escolha fica gravada na
+//     sessão de seleção (chat_sessions com session_id "sel:<loja>:<cliente>")
+//   - Fallback para unidade padrão via env DEFAULT_UNIT_API_KEY.
 // Deploy: .\supabase.exe functions deploy chat-handler --no-verify-jwt
 //
 // Payload esperado (n8n workflow 01):
-//   { message, phone, name, sessionId?, storePhone?, instance? }
+//   { message, phone, name, storePhone?, instance? }
 //   - phone:      telefone do CLIENTE (quem mandou a mensagem)
 //   - storePhone: número da LOJA que recebeu (vem do webhook da AvisaAPI)
 //   - instance:   nome da instância no painel da AvisaAPI (alternativa ao número)
@@ -22,18 +25,26 @@ function first(arr: any[] | null | undefined) {
   return Array.isArray(arr) && arr.length > 0 ? arr[0] : null;
 }
 
-// ==================== RESOLUÇÃO DA UNIDADE (multi-loja) ====================
+function ok(body: unknown) {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+  });
+}
+
+// ==================== RESOLUÇÃO DE UNIDADES (multi-loja N:N) ====================
 // Estratégia:
-//   1. whatsapp_connections por número exato (com DDI)
-//   2. número sem DDI / com DDI (55...)
-//   3. whatsapp_connections por instance_name
-//   4. units.phone direto
-//   5. fallback: unidade padrão (DEFAULT_UNIT_API_KEY)
-async function resolveUnit(restHeaders: Record<string, string>, storePhone?: string, instance?: string) {
+//   1. whatsapp_connections ativas por número (variações com/sem DDI 55)
+//   2. whatsapp_connections por instance_name
+//   3. units.phone direto
+//   4. fallback: unidade padrão (DEFAULT_UNIT_API_KEY)
+// Retorna a LISTA de unidades atendidas por este número.
+async function resolveUnits(restHeaders: Record<string, string>, storePhone?: string, instance?: string): Promise<any[]> {
   const storeDigits = digits(storePhone);
   const inst = (instance || "").trim();
+  const unitIds = new Set<string>();
 
-  // 1/2. por telefone (variações com/sem DDI)
+  // 1. por telefone (variações com/sem DDI)
   if (storeDigits) {
     const variants = [storeDigits];
     if (storeDigits.startsWith("55") && storeDigits.length > 11) variants.push(storeDigits.slice(2));
@@ -43,56 +54,89 @@ async function resolveUnit(restHeaders: Record<string, string>, storePhone?: str
       `${SB_URL}/rest/v1/whatsapp_connections?active=eq.true&phone=in.(${variants.join(",")})&select=unit_id`,
       { headers: restHeaders }
     );
-    const conn = first(await res.json());
-    if (conn?.unit_id) return unitById(restHeaders, conn.unit_id);
+    for (const row of (await res.json()) || []) {
+      if (row.unit_id) unitIds.add(row.unit_id);
+    }
   }
 
-  // 3. por nome da instância
-  if (inst) {
+  // 2. por nome da instância
+  if (unitIds.size === 0 && inst) {
     const res = await fetch(
       `${SB_URL}/rest/v1/whatsapp_connections?active=eq.true&instance_name=eq.${encodeURIComponent(inst)}&select=unit_id`,
       { headers: restHeaders }
     );
-    const conn = first(await res.json());
-    if (conn?.unit_id) return unitById(restHeaders, conn.unit_id);
+    for (const row of (await res.json()) || []) {
+      if (row.unit_id) unitIds.add(row.unit_id);
+    }
   }
 
-  // 4. telefone cadastrado direto na unidade
-  if (storeDigits) {
+  // 3. telefone cadastrado direto na unidade
+  if (unitIds.size === 0 && storeDigits) {
     const variants = [storeDigits];
     if (storeDigits.startsWith("55") && storeDigits.length > 11) variants.push(storeDigits.slice(2));
     else variants.push("55" + storeDigits);
 
     const res = await fetch(
-      `${SB_URL}/rest/v1/units?is_deleted=eq.false&phone=in.(${variants.join(",")})&select=id,name,timezone,api_key`,
+      `${SB_URL}/rest/v1/units?is_deleted=eq.false&phone=in.(${variants.join(",")})&select=id`,
       { headers: restHeaders }
     );
-    const unit = first(await res.json());
-    if (unit) return unit;
+    for (const row of (await res.json()) || []) {
+      if (row.id) unitIds.add(row.id);
+    }
   }
 
-  // 5. unidade padrão (compatibilidade com a loja atual)
+  if (unitIds.size > 0) {
+    const res = await fetch(
+      `${SB_URL}/rest/v1/units?id=in.(${[...unitIds].join(",")})&is_deleted=eq.false&select=id,name,timezone,api_key,city&order=name.asc`,
+      { headers: restHeaders }
+    );
+    const units = await res.json();
+    if (Array.isArray(units) && units.length > 0) return units;
+  }
+
+  // 4. unidade padrão (compatibilidade com a loja original)
   if (DEFAULT_UNIT_API_KEY) {
-    return unitByApiKey(restHeaders, DEFAULT_UNIT_API_KEY);
+    const unit = await unitByApiKey(restHeaders, DEFAULT_UNIT_API_KEY);
+    if (unit) return [unit];
   }
 
-  return null;
-}
-
-async function unitById(restHeaders: Record<string, string>, unitId: string) {
-  const res = await fetch(
-    `${SB_URL}/rest/v1/units?id=eq.${unitId}&is_deleted=eq.false&select=id,name,timezone,api_key`,
-    { headers: restHeaders }
-  );
-  return first(await res.json());
+  return [];
 }
 
 async function unitByApiKey(restHeaders: Record<string, string>, apiKey: string) {
   const res = await fetch(
-    `${SB_URL}/rest/v1/units?api_key=eq.${apiKey}&is_deleted=eq.false&select=id,name,timezone,api_key`,
+    `${SB_URL}/rest/v1/units?api_key=eq.${apiKey}&is_deleted=eq.false&select=id,name,timezone,api_key,city`,
     { headers: restHeaders }
   );
   return first(await res.json());
+}
+
+// ==================== SELEÇÃO DE UNIDADE ====================
+// Sessão de seleção: chat_sessions.session_id = "sel:<numero_loja>:<numero_cliente>"
+// Guarda a unidade escolhida em unit_id; messages fica vazio.
+
+async function loadSelection(restHeaders: Record<string, string>, selSid: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `${SB_URL}/rest/v1/chat_sessions?session_id=eq.${encodeURIComponent(selSid)}&select=unit_id`,
+      { headers: restHeaders }
+    );
+    return first(await res.json())?.unit_id || null;
+  } catch {
+    return null;
+  }
+}
+
+async function saveSelection(restHeaders: Record<string, string>, selSid: string, unitId: string) {
+  try {
+    await fetch(`${SB_URL}/rest/v1/chat_sessions`, {
+      method: "POST",
+      headers: { ...restHeaders, "Prefer": "resolution=merge-duplicates" },
+      body: JSON.stringify({ session_id: selSid, unit_id: unitId, messages: [], updated_at: new Date().toISOString() })
+    });
+  } catch (e) {
+    console.error("Falha ao salvar selecao de unidade:", e);
+  }
 }
 
 // ==================== GEMINI ====================
@@ -204,31 +248,69 @@ Deno.serve(async (req) => {
     "Content-Type": "application/json"
   };
 
-  // --- RESOLVER A LOJA (multi-loja) ---
-  let unit: any = null;
+  // --- RESOLVER AS LOJAS ATENDIDAS PELO NÚMERO ---
+  let units: any[] = [];
   try {
-    unit = await resolveUnit(restHeaders, storePhone, instance);
+    units = await resolveUnits(restHeaders, storePhone, instance);
   } catch (e) {
-    console.error("Falha ao resolver unidade:", e);
+    console.error("Falha ao resolver unidades:", e);
   }
 
-  if (!unit || !unit.api_key) {
+  if (units.length === 0) {
     console.error(`Nenhuma unidade para storePhone=${storePhone} instance=${instance}`);
-    return new Response(JSON.stringify({
+    return ok({
       success: false,
       response: "Desculpe, este número ainda não está vinculado a uma loja. Por favor, contate o suporte. 🐾"
-    }), {
-      status: 200,
-      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
     });
+  }
+
+  const customerDigits = digits(phone);
+  const storeDigits = digits(storePhone);
+
+  // --- ESCOLHA DE UNIDADE (quando o número atende mais de uma) ---
+  let unit = units[0];
+  if (units.length > 1) {
+    const selSid = `sel:${storeDigits || "x"}:${customerDigits || "anon"}`;
+    const chosenId = await loadSelection(restHeaders, selSid);
+    const chosen = chosenId ? units.find(u => u.id === chosenId) : null;
+
+    if (chosen) {
+      unit = chosen;
+    } else {
+      // interpreta a resposta: número da lista ou nome exato da unidade
+      const trimmed = String(message || "").trim();
+      const numMatch = trimmed.match(/^(\d{1,2})$/);
+      let idx = numMatch ? parseInt(numMatch[1], 10) - 1 : -1;
+      if (idx < 0) {
+        const lower = trimmed.toLowerCase();
+        idx = units.findIndex(u => (u.name || "").toLowerCase() === lower);
+      }
+
+      if (idx >= 0 && idx < units.length) {
+        unit = units[idx];
+        await saveSelection(restHeaders, selSid, unit.id);
+        // a mensagem era a escolha em si (número ou nome) → confirma e convida a continuar
+        return ok({
+          success: true,
+          response: `Perfeito! Você está falando com a unidade ${unit.name}. Como posso ajudar você e seu pet hoje? 🐾`,
+          unit: { id: unit.id, name: unit.name }
+        });
+      } else {
+        const lista = units.map((u, i) => `${i + 1}) ${u.name}${u.city ? " — " + u.city : ""}`).join("\n");
+        return ok({
+          success: true,
+          response: `Olá! Este número atende mais de uma unidade:\n\n${lista}\n\nResponda com o número (ou o nome) da unidade que você quer falar. 🐾`,
+          choose: true
+        });
+      }
+    }
   }
 
   const apiKey = unit.api_key;
   const unitName = unit.name || "pet shop";
   const timezone = unit.timezone || "America/Sao_Paulo";
 
-  // Sessão isolada por loja: mesmo cliente em duas lojas = duas conversas
-  const customerDigits = digits(phone);
+  // Sessão da conversa isolada por loja: mesmo cliente em duas lojas = duas conversas
   const sid = `${unit.id}:${customerDigits || "anon"}`;
 
   // Carrega histórico da conversa (memória da Luna)
@@ -394,12 +476,10 @@ Guarde os UUIDs retornados para usar nas proximas chamadas.`;
     console.error("Falha ao salvar historico:", e);
   }
 
-  return new Response(JSON.stringify({
+  return ok({
     success: true,
     response: finalResponse || "Desculpe, nao consegui processar sua solicitacao.",
     unit: { id: unit.id, name: unitName },
     debug: debugInfo || undefined
-  }), {
-    headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
   });
 });
