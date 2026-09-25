@@ -6,7 +6,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-api-key, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "PATCH, OPTIONS",
 };
 
@@ -26,8 +26,7 @@ Deno.serve(async (req) => {
     const appointmentId = url.searchParams.get("id");
 
     const body = await req.json();
-    const authHeader = req.headers.get("Authorization") || "";
-    const apiKey = authHeader.replace("Bearer ", "").trim();
+    const apiKey = (req.headers.get("x-api-key") || req.headers.get("Authorization")?.replace("Bearer ", "") || "").trim();
 
     if (!apiKey) {
       return jsonResponse({ success: false, error: "Missing Authorization header" }, 401);
@@ -69,7 +68,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: false, error: "Missing required field: status" }, 400);
     }
 
-    const validStatuses = ["PENDING", "CONFIRMED", "CHECKED_IN", "IN_PROGRESS", "COMPLETED", "CANCELLED", "NO_SHOW"];
+    const validStatuses = ["PENDING", "CONFIRMED", "REJECTED", "CHECKED_IN", "IN_PROGRESS", "COMPLETED", "CANCELLED", "NO_SHOW"];
     if (!validStatuses.includes(status)) {
       return jsonResponse({ success: false, error: `Invalid status. Valid: ${validStatuses.join(", ")}` }, 400);
     }
@@ -138,7 +137,71 @@ Deno.serve(async (req) => {
       console.error("Update items error:", itemsError);
     }
 
-    // 7. Retorna sucesso
+    // 7. Grava evento para o n8n (workflow 02 avisa o cliente no WhatsApp)
+    const eventByStatus = {
+      CONFIRMED: "APPOINTMENT_CONFIRMED",
+      CANCELLED: "APPOINTMENT_CANCELLED",
+      REJECTED: "APPOINTMENT_REJECTED",
+      COMPLETED: "APPOINTMENT_COMPLETED",
+    };
+    const eventType = eventByStatus[status];
+
+    if (eventType) {
+      try {
+        const { data: customer } = await supabase
+          .from("customers")
+          .select("name, phone")
+          .eq("id", appointment.customer_id)
+          .single();
+
+        const { data: itemsData } = await supabase
+          .from("appointment_items")
+          .select("start_time, pets(name), services(name)")
+          .eq("appointment_id", appointmentId);
+
+        const firstItem = Array.isArray(itemsData) && itemsData.length > 0 ? itemsData[0] : null;
+        const tz = unit.timezone || "America/Sao_Paulo";
+        let date = "", time = "";
+        if (firstItem?.start_time) {
+          const local = new Date(firstItem.start_time).toLocaleString("sv-SE", { timeZone: tz });
+          const [d, t] = local.split(" ");
+          date = d.split("-").reverse().join("/");
+          time = t.slice(0, 5);
+        }
+
+        const eventPayload = {
+          appointment_id: appointmentId,
+          customer: customer ? { name: customer.name, phone: customer.phone } : null,
+          pet: (itemsData || []).map((i) => i.pets?.name).filter(Boolean).join(" e "),
+          service: (itemsData || []).map((i) => i.services?.name).filter(Boolean).join(" + "),
+          date,
+          time,
+          reason: cancellation_reason || null,
+          status,
+          previous_status: appointment.status,
+        };
+
+        await supabase.from("system_events").insert({
+          unit_id: unit.id,
+          event_type: eventType,
+          payload: eventPayload,
+        });
+
+        // Dispara o n8n (workflow 02) — env tem prioridade; fallback para a URL do ngrok
+        const n8nUrl = Deno.env.get("N8N_EVENTS_URL") || "https://stinking-radiated-watch.ngrok-free.dev/webhook/petflow/events";
+        if (n8nUrl && customer?.phone) {
+          fetch(n8nUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ event: eventType, data: { phone: customer.phone, ...eventPayload } }),
+          }).catch((e) => console.error("n8n webhook error:", e));
+        }
+      } catch (e) {
+        console.error("Erro ao gravar evento:", e);
+      }
+    }
+
+    // 8. Retorna sucesso
     return jsonResponse({
       success: true,
       data: {

@@ -87,9 +87,25 @@ n8n/
 | `AVISA_API_KEY` | Bearer da AvisaAPI (envio de mensagens) |
 | `WEBHOOK_URL` | URL pública do n8n (para referência nos webhooks) |
 
-## Multi-loja (Decisão 10)
+## Multi-loja (Decisão 10) — IMPLEMENTADO
 
-Cada loja terá seu próprio número conectado na AvisaAPI. O `whatsapp_connections`
-do banco vai mapear número → unidade; quando houver mais de uma loja, o nó
-**Extrair mensagem** do workflow 01 já expõe o telefone e o backend resolve a
-unidade correspondente.
+Cada loja tem seu próprio número conectado na AvisaAPI. O vínculo número → unidade
+fica na tabela `whatsapp_connections` (migration em `supabase/migrations/`) e é
+gerenciado no **Painel Admin → Gerenciar Loja → aba WhatsApp**.
+
+Fluxo de resolução no `chat-handler` (recebe `storePhone`/`instance` do workflow 01):
+1. Busca conexão ativa pelo número da loja (com variações com/sem DDI 55)
+2. Se não achar, busca por `instance_name` (nome da instância na AvisaAPI)
+3. Se não achar, busca `units.phone` direto
+4. Fallback: unidade padrão (`DEFAULT_UNIT_API_KEY`, env da edge function)
+
+Com a unidade resolvida, o chat-handler usa a `api_key` dela em todas as tools —
+o agendamento cai no painel da loja certa. As conversas ficam isoladas por loja
+(`chat_sessions.session_id = <unit_id>:<telefone_cliente>`).
+
+> ⚠️ **Importar/reimportar o workflow 01** após esta mudança (o nó *Extrair mensagem*
+> agora envia `storePhone`/`instance` ao chat-handler).
+>
+> ⚠️ Se o payload da AvisaAPI não trouxer o número da loja em nenhum campo conhecido,
+> veja o `raw` da execução no n8n e ajuste o mapeamento no nó *Extrair mensagem*.
+> Sem `storePhone`, o sistema cai no fallback da unidade padrão.

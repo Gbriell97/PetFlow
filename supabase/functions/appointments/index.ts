@@ -69,13 +69,16 @@ serve(async (req) => {
     }
 
     // --- 4. VALIDAR SERVIÇOS (ativos) ---
+    const serviceNames: Record<string, string> = {};
     for (const serviceId of service_ids) {
       const svcRes = await fetch(`${sbUrl}/rest/v1/services?id=eq.${serviceId}&unit_id=eq.${unitId}&is_deleted=eq.false&active=eq.true&select=*`, {
         headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` },
       });
-      if (!first(await svcRes.json())) {
+      const svcRow = first(await svcRes.json());
+      if (!svcRow) {
         return res({ success: false, error: `Service not found or inactive: ${serviceId}` }, 404);
       }
+      serviceNames[serviceId] = svcRow.name;
     }
 
     // --- 5. CONVERTER DATETIME ---
@@ -160,7 +163,7 @@ serve(async (req) => {
 
       totalPrice += price;
       totalDuration += duration;
-      items.push({ pet_id: petId, service_id: serviceId, price, duration_minutes: duration });
+      items.push({ pet_id: petId, service_id: serviceId, price, duration_minutes: duration, pet_name: pet?.name || null, service_name: serviceNames[serviceId] || null });
     }
 
     // Recalcular slotEnd com duração real
@@ -253,6 +256,57 @@ serve(async (req) => {
           status: "PENDING",
         }),
       });
+    }
+
+    // --- 13. NOTIFICAÇÃO (painel) + EVENTO (n8n) ---
+    try {
+      const summary = items.map((it: any) => `${it.service_name} p/ ${it.pet_name}`).join(" + ");
+      const localStr = `${localDate} ${localHour}`;
+      const eventPayload = {
+        appointment_id: appointment.id,
+        customer: { id: customer.id, name: customer.name, phone: customer.phone },
+        pet: items.map((it: any) => it.pet_name).filter(Boolean).join(" e "),
+        service: items.map((it: any) => it.service_name).filter(Boolean).join(" + "),
+        date: localDate.split("-").reverse().join("/"),
+        time: localHour,
+        value: `R$ ${totalPrice.toFixed(2)}`,
+        start_datetime: slotStartUTC,
+        timezone,
+      };
+
+      await fetch(`${sbUrl}/rest/v1/notifications`, {
+        method: "POST",
+        headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          unit_id: unitId,
+          customer_id,
+          appointment_id: appointment.id,
+          type: "appointment_request",
+          channel: "WHATSAPP",
+          status: "SCHEDULED",
+          scheduled_at: new Date().toISOString(),
+          content: `Novo pedido de agendamento: ${summary} — ${customer.name} — ${localStr}`,
+          metadata: eventPayload,
+        }),
+      });
+
+      await fetch(`${sbUrl}/rest/v1/system_events`, {
+        method: "POST",
+        headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ unit_id: unitId, event_type: "APPOINTMENT_CREATED", payload: eventPayload }),
+      });
+
+      // Dispara o n8n (workflow 02) — env tem prioridade; fallback para a URL do ngrok
+      const n8nUrl = Deno.env.get("N8N_EVENTS_URL") || "https://stinking-radiated-watch.ngrok-free.dev/webhook/petflow/events";
+      if (n8nUrl) {
+        fetch(n8nUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ event: "APPOINTMENT_CREATED", data: { phone: customer.phone, ...eventPayload } }),
+        }).catch((e) => console.error("n8n webhook error:", e));
+      }
+    } catch (e) {
+      console.error("Erro ao gravar notificacao/evento:", e);
     }
 
     return res({

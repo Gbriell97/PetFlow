@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Webhook AvisaAPI\n\nConfigure no painel da AvisaAPI:\n**URL do webhook:** `{{$env.WEBHOOK_URL}}/webhook/petflow/whatsapp`\n\nEm desenvolvimento, exponha o n8n com ngrok/cloudflared e use a URL publica.\n\nO no **Extrair mensagem** e tolerante a varios formatos de payload (Evolution/Baileys, generico). Se a AvisaAPI mandar um formato diferente, veja o campo `raw` na execucao e ajuste o mapeamento."
+        "content": "## Webhook AvisaAPI\n\nConfigure no painel da AvisaAPI:\n**URL do webhook:** `{{$env.WEBHOOK_URL}}/webhook/petflow/whatsapp`\n\nEm desenvolvimento, exponha o n8n com ngrok/cloudflared e use a URL publica.\n\nO no **Extrair mensagem** e tolerante a varios formatos de payload (Evolution/Baileys, generico). Se a AvisaAPI mandar um formato diferente, veja o campo `raw` na execucao e ajuste o mapeamento.\n\n**Multi-loja:** o no tambem extrai `storePhone`/`instance` (numero/nome da instancia da LOJA que recebeu) e envia ao chat-handler, que resolve a unidade pela tabela `whatsapp_connections` e usa a api_key da loja certa. O cadastro do vinculo e feito no Painel Admin → Gerenciar Loja → aba WhatsApp."
       },
       "id": "w1-note",
       "name": "Nota",
@@ -29,7 +29,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Normaliza o payload recebido — tolerante aos formatos mais comuns\n// (Evolution/Baileys, generico {from,message}, etc.)\nconst b = $json.body || {};\n\n// Ignora eventos que nao sao mensagem de texto recebida\nif (b.event && !['messages.upsert', 'message', 'message.received', 'onmessage'].includes(b.event)) {\n  return [{ json: { kind: 'ignored', reason: 'evento: ' + b.event } }];\n}\n\nconst d = b.data || b;\nconst key = d.key || {};\nconst msgObj = (typeof d.message === 'object' && d.message) ? d.message : {};\n\nlet phone = key.remoteJid || d.remoteJid || b.from || b.number || b.phone || '';\nphone = String(phone).replace('@s.whatsapp.net', '').replace('@g.us', '').replace(/\\D/g, '');\n\nconst fromMe = key.fromMe === true || d.fromMe === true;\nconst isGroup = String(key.remoteJid || d.remoteJid || '').includes('@g.us');\n\nconst text = msgObj.conversation\n  || msgObj.extendedTextMessage?.text\n  || d.messageBody\n  || d.body\n  || (typeof d.message === 'string' ? d.message : '')\n  || (typeof b.message === 'string' ? b.message : '')\n  || b.text || '';\n\nconst name = d.pushName || b.pushName || b.name || b.notifyName || '';\n\n// Ignora: mensagens enviadas por nos, grupos, ou payloads sem telefone/texto\nif (fromMe || isGroup || !phone || !text) {\n  return [{ json: { kind: 'ignored', fromMe, isGroup, phone } }];\n}\n\nreturn [{ json: { kind: 'message', phone, name, text } }];"
+        "jsCode": "// Normaliza o payload recebido — tolerante aos formatos mais comuns\n// (Evolution/Baileys, generico {from,message}, etc.)\nconst b = $json.body || {};\n\n// Ignora eventos que nao sao mensagem de texto recebida\nif (b.event && !['messages.upsert', 'message', 'message.received', 'onmessage'].includes(b.event)) {\n  return [{ json: { kind: 'ignored', reason: 'evento: ' + b.event } }];\n}\n\nconst d = b.data || b;\nconst key = d.key || {};\nconst msgObj = (typeof d.message === 'object' && d.message) ? d.message : {};\n\nlet phone = key.remoteJid || d.remoteJid || b.from || b.number || b.phone || '';\nphone = String(phone).replace('@s.whatsapp.net', '').replace('@g.us', '').replace(/\\D/g, '');\n\nconst fromMe = key.fromMe === true || d.fromMe === true;\nconst isGroup = String(key.remoteJid || d.remoteJid || '').includes('@g.us');\n\nconst text = msgObj.conversation\n  || msgObj.extendedTextMessage?.text\n  || d.messageBody\n  || d.body\n  || (typeof d.message === 'string' ? d.message : '')\n  || (typeof b.message === 'string' ? b.message : '')\n  || b.text || '';\n\n// Numero da LOJA que recebeu a mensagem (multi-loja) — varia por gateway, tenta varios campos comuns\nlet storePhone = (typeof b.instance === 'object' && b.instance?.number) || b.instanceNumber || b.instance_number || b.botNumber || b.bot_number || (typeof d.instance === 'object' && d.instance?.number) || d.instanceNumber || d.botNumber || '';\nstorePhone = String(storePhone || '').replace(/\\D/g, '');\n\n// Nome da instancia (Evolution/AvisaAPI) — alternativa ao numero\nlet instance = (typeof b.instance === 'string' && b.instance) || (typeof d.instance === 'string' && d.instance) || b.instanceName || d.instanceName || b.connection || '';\ninstance = String(instance || '').trim();\n\nconst name = d.pushName || b.pushName || b.name || b.notifyName || '';\n\n// Ignora: mensagens enviadas por nos, grupos, ou payloads sem telefone/texto\nif (fromMe || isGroup || !phone || !text) {\n  return [{ json: { kind: 'ignored', fromMe, isGroup, phone } }];\n}\n\nreturn [{ json: { kind: 'message', phone, name, text, storePhone, instance } }];"
       },
       "id": "w1-extract",
       "name": "Extrair mensagem",
@@ -77,7 +77,8 @@
             { "name": "message", "value": "={{ $json.text }}" },
             { "name": "phone", "value": "={{ $json.phone }}" },
             { "name": "name", "value": "={{ $json.name }}" },
-            { "name": "sessionId", "value": "={{ $json.phone }}" }
+            { "name": "storePhone", "value": "={{ $json.storePhone }}" },
+            { "name": "instance", "value": "={{ $json.instance }}" }
           ]
         },
         "options": { "timeout": 60000 }
