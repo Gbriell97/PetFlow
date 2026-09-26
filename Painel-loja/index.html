@@ -1066,10 +1066,12 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
           <div class="form-group">
             <label class="form-label">Tipo</label>
             <select class="form-select" id="blockFormType">
-              <option value="holiday">Feriado</option>
-              <option value="vacation">Férias</option>
-              <option value="maintenance">Manutenção</option>
-              <option value="other">Outro</option>
+              <option value="HOLIDAY">Feriado</option>
+              <option value="VACATION">Férias</option>
+              <option value="MAINTENANCE">Manutenção</option>
+              <option value="EMERGENCY">Emergência</option>
+              <option value="LUNCH">Almoço / Intervalo</option>
+              <option value="OTHER">Outro</option>
             </select>
           </div>
         </form>
@@ -1300,6 +1302,7 @@ const api = {
   },
   get(endpoint) { return this.request(endpoint, { method: 'GET' }); },
   post(endpoint, body) { return this.request(endpoint, { method: 'POST', body: JSON.stringify(body) }); },
+  put(endpoint, body) { return this.request(endpoint, { method: 'PUT', body: JSON.stringify(body) }); },
   patch(endpoint, body) { return this.request(endpoint, { method: 'PATCH', body: JSON.stringify(body) }); },
   delete(endpoint) { return this.request(endpoint, { method: 'DELETE' }); },
 };
@@ -1400,7 +1403,7 @@ async function fetchBlocks() {
     start_date: (b.start_datetime || '').slice(0, 10),
     end_date: (b.end_datetime || '').slice(0, 10),
     reason: b.reason,
-    type: b.period_type || 'other',
+    type: b.period_type || 'OTHER',
   }));
 }
 
@@ -2693,8 +2696,8 @@ function renderBlocks(blocks) {
   table.style.display = 'table';
   empty.style.display = 'none';
 
-  const typeLabels = { holiday: 'Feriado', vacation: 'Férias', maintenance: 'Manutenção', other: 'Outro' };
-  const typeColors = { holiday: 'warning', vacation: 'info', maintenance: 'secondary', other: 'secondary' };
+  const typeLabels = { HOLIDAY: 'Feriado', VACATION: 'Férias', MAINTENANCE: 'Manutenção', EMERGENCY: 'Emergência', LUNCH: 'Almoço / Intervalo', OTHER: 'Outro' };
+  const typeColors = { HOLIDAY: 'warning', VACATION: 'info', MAINTENANCE: 'secondary', EMERGENCY: 'error', LUNCH: 'secondary', OTHER: 'secondary' };
 
   tbody.innerHTML = blocks.sort((a, b) => a.start_date.localeCompare(b.start_date)).map(b => {
     const isSingleDay = b.start_date === b.end_date;
@@ -2736,7 +2739,7 @@ function openBlockFormModal(blockId = null) {
       document.getElementById('blockFormStart').value = b.start_date;
       document.getElementById('blockFormEnd').value = b.end_date;
       document.getElementById('blockFormReason').value = b.reason || '';
-      document.getElementById('blockFormType').value = b.type || 'other';
+      document.getElementById('blockFormType').value = b.type || 'OTHER';
     }
   } else {
     document.getElementById('blockForm').reset();

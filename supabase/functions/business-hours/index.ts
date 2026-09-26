@@ -66,7 +66,6 @@ Deno.serve(async (req) => {
       const rows = hours.map((h: any) => ({
         unit_id: unit.id,
         day_of_week: h.day_of_week,
-        day_name: h.day_name || undefined,
         open_time: h.open_time || null,
         close_time: h.close_time || null,
         is_closed: h.is_closed === undefined ? (h.is_open !== undefined ? !h.is_open : false) : h.is_closed,
