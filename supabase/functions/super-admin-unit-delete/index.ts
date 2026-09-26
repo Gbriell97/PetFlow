@@ -2,7 +2,7 @@
 // Exclui (soft-delete) uma unidade
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@Supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -35,20 +35,32 @@ serve(async (req) => {
       return new Response(JSON.stringify({ success: false, error: "Não autorizado" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const { data: adminCheck } = await supabase.from("unit_users").select("role").eq("user_id", user.id).eq("role", "SUPER_ADMIN").eq("is_active", true).maybeSingle();
+    const { data: adminCheck } = await supabase
+      .from("unit_users")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "SUPER_ADMIN")
+      .eq("is_active", true)
+      .maybeSingle();
+
     if (!adminCheck) {
       return new Response(JSON.stringify({ success: false, error: "Acesso negado" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const body = await req.json().catch(() => ({}));
     const unitId = body.unit_id;
+
     if (!unitId) {
       return new Response(JSON.stringify({ success: false, error: "unit_id obrigatório" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const { error: unitErr } = await supabase
       .from("units")
-      .update({ is_deleted: true, status: "SOFT_CLOSED", deleted_at: new Date().toISOString() })
+      .update({
+        is_deleted: true,
+        status: "SOFT_CLOSED",
+        deleted_at: new Date().toISOString(),
+      })
       .eq("id", unitId);
 
     if (unitErr) {
@@ -56,9 +68,18 @@ serve(async (req) => {
     }
 
     // Desativa os vínculos WhatsApp da loja (o número deixa de rotear para ela)
-    await supabase.from("whatsapp_connections").update({ active: false }).eq("unit_id", unitId);
+    await supabase
+      .from("whatsapp_connections")
+      .update({ active: false })
+      .eq("unit_id", unitId);
 
-    return new Response(JSON.stringify({ success: true, message: "Loja excluída com sucesso" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(
+      JSON.stringify({ success: true, message: "Loja excluída com sucesso" }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
 
   } catch (err: any) {
     console.error("DELETE UNIT ERROR:", err);
