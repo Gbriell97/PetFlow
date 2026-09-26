@@ -43,6 +43,9 @@ try {
     } else if (ev.event_type === 'APPOINTMENT_CANCELLED') {
       text = '❌ Seu agendamento de *' + (p.service || 'serviço') + '* para *' + (p.pet || 'seu pet') + '* em ' +
         (p.date || '') + ' às ' + (p.time || '') + ' foi cancelado.\n\nDigite *menu* se quiser reagendar.';
+    } else if (ev.event_type === 'APPOINTMENT_COMPLETED') {
+      text = '🐾 *Atendimento finalizado!*\n\n' + (p.service || 'Serviço') + ' de *' + (p.pet || 'seu pet') + '* foi concluído.\n\n' +
+        'Obrigado pela confiança! Esperamos vocês na próxima. 💙';
     }
     if (phone && text) {
       const ok = await sendText(phone, text);

@@ -1,111 +1,117 @@
 # PetFlow — Projeto n8n
 
-Automação e integração do PetFlow: ponte entre **WhatsApp (AvisaAPI)**,
-o **backend (Supabase Edge Functions)** e as **notificações/lembretes** — conforme a
-arquitetura definida no documento do projeto:
+Automação e integração do PetFlow: ponte entre **WhatsApp (Evolution API)**,
+o **backend (Supabase)** e as **notificações/lembretes**:
 
 ```
-Cliente → WhatsApp → AvisaAPI → webhook → n8n → chat-handler (IA) → Backend/Supabase
-                                             ↘ Eventos/Lembretes → WhatsApp
+Cliente → WhatsApp → Evolution API → webhook → n8n → máquina de estados → Backend/Supabase
+                                                     ↘ IA Luna (humaniza) → WhatsApp
+                     Schedule (1 min) → eventos do painel + lembretes → WhatsApp
 ```
 
-Regra de ouro respeitada nos workflows: **a IA entende, o backend decide**. O n8n só
-transporta mensagens e eventos — nenhuma regra de negócio (preço, disponibilidade,
-confirmação) é calculada aqui.
+Regras de ouro respeitadas no workflow: **o sistema é a fonte da verdade, o n8n decide,
+a IA só humaniza a comunicação**. Nenhuma regra de negócio (preço, disponibilidade,
+confirmação) é decidida pela IA. Tudo roda em **um único workflow**.
 
-> ⚠️ **AvisaAPI é um gateway não-oficial.** Para o MVP é rápido e barato, mas quando o
-> produto for vendido comercialmente (multi-loja), o plano é migrar para a WhatsApp
-> Business Platform oficial (Decisão 10). A troca afeta apenas os nós de envio/recebimento
-> do n8n — o backend não muda.
+> ⚠️ Os workflows antigos da AvisaAPI (01–03) foram removidos. O canal oficial
+> agora é a **Evolution API**, no workflow único `04-evolution-bot.json`.
 
 ## Estrutura
 
 ```
 n8n/
-├── docker-compose.yml      # Stack n8n + Postgres (reprodução/migração)
-├── .env.example            # Todas as variáveis necessárias
-├── import.sh               # Importa os workflows via API do n8n
+├── docker-compose.yml          # Stack n8n + Postgres (reprodução/migração)
+├── build_workflow.py           # Monta o workflow único a partir de src/*.js
+├── import.sh                   # Importa os workflows via API do n8n
+├── src/
+│   ├── extract.js              # Nó 1 — normaliza payload Evolution (fono, texto, instância, messageId)
+│   ├── statemachine.js         # Nó 2 — máquina de estados + multi-loja + idempotência
+│   └── events.js               # Nó 11 — eventos do painel + lembretes (24h e 2h)
 └── workflows/
-    ├── 01-whatsapp-inbound.json   # Webhook AvisaAPI → IA (chat-handler) → resposta
-    ├── 02-system-events.json      # Eventos do backend → WhatsApp do cliente
-    └── 03-reminders.json          # Lembretes automáticos (24h antes)
+    └── 04-evolution-bot.json   # WORKFLOW ÚNICO (gerado por build_workflow.py)
 ```
 
-## Workflows
+> Para alterar o comportamento do bot, edite os arquivos em `src/` e rode
+> `python build_workflow.py`. Depois reimporte o JSON no n8n.
 
-### 01 — WhatsApp Inbound (AvisaAPI)
-- `POST /webhook/petflow/whatsapp` — recebe as mensagens que a AvisaAPI encaminha.
-- O nó **Extrair mensagem** normaliza o payload (tolerante aos formatos Evolution/Baileys
-  e genérico), ignora grupos e mensagens enviadas pelo próprio número (evita loop).
-- Chama a Edge Function `chat-handler` (IA Luna) e devolve a resposta pela AvisaAPI.
-- Nó **Log mensagem (Supabase)** desabilitado — habilite quando a tabela `messages`
-  existir (Decisão 19).
+## Workflow único — blocos
 
-### 02 — Eventos do Sistema
-- `POST /webhook/petflow/events` — o backend dispara eventos (`system_events`):
-  `APPOINTMENT_CREATED`, `APPOINTMENT_CONFIRMED`, `APPOINTMENT_REJECTED`,
-  `APPOINTMENT_CANCELLED`, `APPOINTMENT_COMPLETED`, `QUOTE_SENT`, `REMINDER`,
-  `HUMAN_HANDOFF`.
-- Cada evento vira uma mensagem com variáveis (cliente, pet, serviço, data, horário)
-  enviada ao cliente pela AvisaAPI.
+**Gatilho 1 — Webhook Evolution** (`POST /webhook/whatsapp-inbound`)
+1. **01 · Webhook Evolution** — recebe `messages.upsert` da Evolution v2.
+2. **02 · Extrair mensagem** — normaliza o payload, ignora grupos/fromMe (evita loop)
+   e captura `phone`, `text`, `pushName`, `instance`, `storePhone` e `messageId`.
+3. **02 · Máquina de estados** — toda a lógica determinística (ver abaixo).
+4. **03 · Tem resposta?** → silêncio (`mode=none`) não envia nada.
+5. **04 · Texto pronto?** → `fixed` vai direto para **05 · Enviar WhatsApp**;
+   `polish`/`fallback` passam pela **05 · IA Luna (Gemini)** que apenas humaniza,
+   e o texto final sai por **06 · Enviar WhatsApp (IA)**.
 
-### 03 — Lembretes Automáticos
-- A cada 15 min, busca agendamentos `CONFIRMED` que começam entre 24h00 e 24h15,
-  envia o lembrete e marca `reminder_sent = true`.
-- ⚠️ Nomes de colunas provisórios — ajuste o nó **Mapear campos** quando o DER final
-  estiver fechado (há uma nota dentro do workflow).
+**Gatilho 2 — Schedule (a cada 1 minuto)**
+- **11 · Eventos + Lembretes** — processa `system_events` não processados
+  (`APPOINTMENT_CONFIRMED`, `APPOINTMENT_REJECTED`, `APPOINTMENT_CANCELLED`,
+  `APPOINTMENT_COMPLETED`) e envia lembretes de **24h** e **2h** antes, com controle
+  de duplicidade (`reminder_sent` / `reminder_2h_sent`). Só lembra agendamentos
+  `CONFIRMED`.
+
+## Máquina de estados (`src/statemachine.js`)
+
+- **Contexto central** na tabela `conversation_state` (por telefone): `state`,
+  `data` (JSON com `unit_id`, pet/serviço/horário escolhidos, `last_msg_id`) e
+  `handoff` (humano atendendo → bot mudo até o cliente digitar *menu*).
+- **Idempotência**: se o `messageId` da mensagem já foi processado
+  (`data.last_msg_id`), a execução é ignorada — webhook duplicado não gera
+  resposta nem operação em dobro.
+- **Cadastro**: cliente novo → nome → pet (nome, espécie, porte) → grava no
+  Supabase e só continua após confirmação do insert.
+- **Agendamento**: pet → serviço (preços reais por porte, `service_price_rules`)
+  → dia → horários (`available-slots`) → confirmação → `POST /functions/v1/appointments`.
+  Só diz "enviado" se `res.success`; nunca diz "confirmado" — quem confirma é a loja
+  no painel (chega via `APPOINTMENT_CONFIRMED`).
+- **Erros**: qualquer falha no Supabase/API responde "probleminha técnico" e nunca
+  afirma que a operação foi concluída.
+
+## Multi-loja (N:N) — IMPLEMENTADO no workflow único
+
+Uma conexão Evolution pode atender **uma ou várias lojas** (tabela
+`whatsapp_connections`, gerenciada no **Painel Admin → Gerenciar Loja → aba WhatsApp**).
+
+Fluxo na máquina de estados (recebe `storePhone`/`instance` do nó *Extrair mensagem*):
+1. Resolve TODAS as lojas da conexão: conexões ativas por telefone (com/sem DDI 55)
+   → `instance_name` → `units.phone` direto → fallback unidade padrão (`PETFLOW_API_KEY`).
+2. **1 loja** → seleciona automaticamente e salva `unit_id` no contexto.
+3. **N lojas** → menu numerado; a escolha (número ou nome exato) é validada e salva
+   em `data.unit_id` — vale enquanto o contexto for válido, não pergunta de novo.
+4. **Troca de loja**: somente por comando explícito do cliente
+   (*"trocar loja"*, *"trocar de loja"*, *"mudar loja"*).
+5. Com a loja definida, **todas** as consultas e operações usam o `unit_id` e a
+   `api_key` dela (cliente, pets, serviços, preços, horários, agendamentos) —
+   isolamento total por loja.
+
+> ⚠️ Se o payload da Evolution não trouxer `instance` nem número da loja em campo
+> conhecido, veja o `raw` da execução no n8n e ajuste o mapeamento no nó
+> *Extrair mensagem*. Sem identificação, o sistema cai no fallback da unidade padrão.
 
 ## Setup
 
-1. **Variáveis**: o container `n8n_local` já foi recriado com `SUPABASE_URL`,
-   `SUPABASE_SERVICE_KEY`, `PETFLOW_API_KEY` e `AVISA_API_KEY`.
-   Para mudar algum valor, edite e recrie o container (ou use o `docker-compose.yml`).
-2. **Importar workflows**: n8n → menu **⋯ → Import from File**, um JSON por vez.
-   Se você já tinha importado a versão Meta, reimporte — a versão AvisaAPI substitui.
-3. **Ative os 3 workflows** (toggle "Active").
-4. **URL pública**: o webhook precisa ser acessível pela internet. Em desenvolvimento:
-   ```bash
-   ngrok http 5678
-   ```
-   (o container já está com `WEBHOOK_URL=https://stinking-radiated-watch.ngrok-free.dev/` —
-   se o seu ngrok gerar outra URL, recrie o container com a nova.)
-5. **Webhook na AvisaAPI**: no painel (https://www.avisaapi.com.br), conecte seu número
-   e configure o webhook de mensagens recebidas para:
-   ```
-   https://SUA-URL-PUBLICA/webhook/petflow/whatsapp
-   ```
-6. **Teste**: envie "Olá" de outro celular para o número conectado. A mensagem deve
-   aparecer em **Executions** no n8n e a IA deve responder no WhatsApp.
+1. **Variáveis** no container n8n: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`,
+   `PETFLOW_API_KEY` (unidade padrão/fallback), `EVOLUTION_URL`,
+   `EVOLUTION_API_KEY`, `EVOLUTION_INSTANCE` e `WEBHOOK_URL`.
+2. **Build**: `python build_workflow.py` (gera `workflows/04-evolution-bot.json`).
+3. **Importar**: n8n → menu **⋯ → Import from File** → `04-evolution-bot.json`.
+4. **Ativar** o workflow (toggle "Active") e conferir a credencial do Gemini.
+5. **URL pública**: em desenvolvimento, `ngrok http 5678` e configure o webhook
+   da instância Evolution para `https://SUA-URL-PUBLICA/webhook/whatsapp-inbound`.
+6. **Teste**: envie "Olá" de outro celular. A execução deve aparecer no n8n e a
+   resposta chegar no WhatsApp.
 
-## Variáveis de ambiente usadas pelos workflows
+## Variáveis de ambiente
 
 | Variável | Uso |
 |---|---|
 | `SUPABASE_URL` | Base do backend (Edge Functions + REST) |
-| `SUPABASE_SERVICE_KEY` | Acesso REST (tabelas appointments/messages) |
-| `PETFLOW_API_KEY` | Bearer aceito pelas Edge Functions PetFlow |
-| `AVISA_API_KEY` | Bearer da AvisaAPI (envio de mensagens) |
-| `WEBHOOK_URL` | URL pública do n8n (para referência nos webhooks) |
-
-## Multi-loja (Decisão 10) — IMPLEMENTADO (N:N)
-
-Um número pode atender **várias unidades** e uma unidade pode ter vários números.
-O vínculo fica na tabela `whatsapp_connections` e é gerenciado no
-**Painel Admin → Gerenciar Loja → aba WhatsApp**.
-
-Fluxo no `chat-handler` (recebe `storePhone`/`instance` do workflow 01):
-1. Resolve TODAS as unidades do número: conexões ativas por telefone (com/sem DDI 55)
-   → `instance_name` → `units.phone` direto → fallback unidade padrão (`DEFAULT_UNIT_API_KEY`)
-2. **1 unidade** → atende direto, com a `api_key` dela
-3. **N unidades** → envia menu numerado ("Responda com o número da unidade"); a escolha
-   fica gravada na sessão `sel:<numero_loja>:<numero_cliente>` (coluna `unit_id` em
-   `chat_sessions`) e vale para toda a conversa — não pergunta de novo
-4. Com a unidade definida, todas as tools usam a `api_key` dela — o agendamento cai
-   no painel certo. Conversas isoladas por loja (`<unit_id>:<telefone>`).
-
-> ⚠️ **Importar/reimportar o workflow 01** após esta mudança (o nó *Extrair mensagem*
-> agora envia `storePhone`/`instance` ao chat-handler).
->
-> ⚠️ Se o payload da AvisaAPI não trouxer o número da loja em nenhum campo conhecido,
-> veja o `raw` da execução no n8n e ajuste o mapeamento no nó *Extrair mensagem*.
-> Sem `storePhone`, o sistema cai no fallback da unidade padrão.
+| `SUPABASE_SERVICE_KEY` | Acesso REST (tabelas) |
+| `PETFLOW_API_KEY` | Unidade padrão (fallback da resolução multi-loja) |
+| `EVOLUTION_URL` | Base da Evolution API (envio de mensagens) |
+| `EVOLUTION_API_KEY` | apikey da Evolution |
+| `EVOLUTION_INSTANCE` | Instância usada no nó de envio |
+| `WEBHOOK_URL` | URL pública do n8n (referência) |

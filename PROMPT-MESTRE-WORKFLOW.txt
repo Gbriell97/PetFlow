@@ -1,0 +1,1409 @@
+# PROMPT MESTRE — ATUALIZAÇÃO DO WORKFLOW N8N DO PETFLOW
+
+Você está trabalhando na atualização de um **workflow n8n já existente** responsável pelo atendimento de uma loja de pet shop através do WhatsApp.
+
+A infraestrutura atual já utiliza:
+
+* **n8n** para automação/orquestração;
+* **Evolution API** para integração com WhatsApp;
+* **Supabase** para banco de dados;
+* Sistema/site/app próprio para gerenciamento das lojas, clientes, pets, serviços, funcionários e agendamentos.
+
+## OBJETIVO
+
+Sua tarefa é **analisar o workflow existente e aprimorá-lo**, implementando as regras de negócio descritas neste documento.
+
+### REGRA FUNDAMENTAL
+
+**NÃO recrie o sistema do zero.**
+
+Primeiro analise completamente o workflow atual.
+
+Identifique o que já funciona.
+
+Preserve o que já funciona.
+
+Reutilize os nós existentes sempre que possível.
+
+Modifique somente o necessário.
+
+Crie novos nós somente quando realmente necessário.
+
+---
+
+# 1. ARQUITETURA: APENAS UM WORKFLOW
+
+Esta é uma exigência do projeto:
+
+## TODO o atendimento deve permanecer em UM ÚNICO WORKFLOW n8n.
+
+Não criar workflows separados para:
+
+* atendimento;
+* cadastro;
+* agendamento;
+* confirmação;
+* cancelamento;
+* serviços;
+* preços;
+* lembretes;
+* atualização de status;
+* seleção de loja;
+* notificações.
+
+Tudo deverá permanecer dentro do workflow principal.
+
+É permitido utilizar diferentes gatilhos dentro do mesmo workflow quando necessário.
+
+Por exemplo:
+
+```text
+                    WORKFLOW PETFLOW
+                          │
+             ┌────────────┴────────────┐
+             │                         │
+             ▼                         ▼
+     Webhook Evolution API      Schedule Trigger
+             │                         │
+             ▼                         ▼
+       Atendimento                 Lembretes
+             │                         │
+             └────────────┬────────────┘
+                          ▼
+                       SUPABASE
+```
+
+Continua sendo um único workflow.
+
+---
+
+# 2. ANTES DE ALTERAR QUALQUER COISA
+
+Antes de modificar o workflow:
+
+1. Analise todos os nós existentes.
+2. Identifique os gatilhos.
+3. Identifique a integração com Evolution API.
+4. Identifique as consultas ao Supabase.
+5. Identifique os inserts.
+6. Identifique os updates.
+7. Identifique os webhooks.
+8. Identifique o agente de IA.
+9. Identifique como o cliente é localizado.
+10. Identifique como a loja é localizada.
+11. Identifique como o contexto da conversa é armazenado.
+12. Identifique como o agendamento é criado.
+13. Identifique como as mensagens são enviadas.
+14. Identifique qualquer lógica de lembrete existente.
+15. Identifique qualquer lógica de status existente.
+
+Depois dessa análise, determine quais partes podem ser reutilizadas.
+
+### NÃO faça:
+
+* duplicação desnecessária de nós;
+* criação de consultas que já existem;
+* substituição de integrações funcionando;
+* criação de workflows adicionais;
+* alteração de credenciais sem necessidade;
+* alteração de tabelas sem necessidade.
+
+---
+
+# 3. ARQUITETURA INTERNA
+
+Mesmo utilizando apenas um workflow, organize visualmente os nós em blocos.
+
+Sugestão:
+
+```text
+01 — ENTRADA / EVOLUTION
+02 — NORMALIZAÇÃO
+03 — IDENTIFICAÇÃO DO CLIENTE
+04 — IDENTIFICAÇÃO DA LOJA
+05 — CONTEXTO DA CONVERSA
+06 — IDENTIFICAÇÃO DA INTENÇÃO
+07 — CONSULTAS SUPABASE
+08 — REGRAS DE NEGÓCIO
+09 — CADASTRO
+10 — PETS
+11 — SERVIÇOS
+12 — PREÇOS
+13 — HORÁRIOS
+14 — DISPONIBILIDADE
+15 — AGENDAMENTO
+16 — STATUS
+17 — NOTIFICAÇÕES
+18 — PREPARAÇÃO PARA IA
+19 — AGENTE IA
+20 — ENVIO EVOLUTION
+21 — EVENTOS DE RETORNO
+22 — LEMBRETES
+23 — CONTROLE DE DUPLICIDADE
+24 — LOG/FINALIZAÇÃO
+```
+
+Não é obrigatório utilizar exatamente esses nomes.
+
+O objetivo é deixar o workflow visualmente organizado e fácil de manter.
+
+---
+
+# 4. REGRA DE MÚLTIPLAS LOJAS
+
+Um mesmo número de WhatsApp pode estar vinculado a:
+
+* uma loja;
+* várias lojas.
+
+## UMA LOJA
+
+Se o número estiver relacionado a apenas uma loja:
+
+```text
+telefone
+↓
+consulta lojas
+↓
+1 resultado
+↓
+selecionar automaticamente
+↓
+salvar store_id
+```
+
+Não perguntar novamente qual loja.
+
+---
+
+## VÁRIAS LOJAS
+
+Se o número estiver relacionado a mais de uma loja:
+
+```text
+telefone
+↓
+consulta lojas
+↓
+mais de uma loja
+↓
+perguntar qual loja
+↓
+cliente escolhe
+↓
+validar escolha
+↓
+salvar store_id
+↓
+continuar atendimento
+```
+
+Exemplo:
+
+> Olá! 😊
+>
+> Encontrei mais de uma loja vinculada a este número.
+>
+> Qual loja você deseja acessar?
+>
+> 1️⃣ Pet Shop Centro
+> 2️⃣ Pet Shop Pituba
+> 3️⃣ Pet Shop Paralela
+
+A seleção deverá ser salva no contexto da conversa.
+
+---
+
+# 5. ISOLAMENTO TOTAL POR LOJA
+
+Essa é uma das regras mais importantes de todo o sistema.
+
+Depois que o cliente selecionar uma loja, **todas as operações deverão utilizar essa loja como contexto**.
+
+A informação principal será:
+
+```text
+store_id
+```
+
+Todas as consultas deverão respeitar a loja selecionada.
+
+Isso inclui:
+
+* cliente;
+* pet;
+* serviços;
+* preços;
+* funcionários;
+* horários;
+* disponibilidade;
+* tempo de espera;
+* agendamentos;
+* configurações;
+* regras;
+* status;
+* informações da loja.
+
+Nunca misturar dados entre lojas.
+
+---
+
+# 6. CONTEXTO CENTRAL
+
+Manter um contexto da conversa semelhante a:
+
+```json
+{
+  "phone": "",
+  "store_id": "",
+  "customer_id": "",
+  "pet_id": "",
+  "service_id": "",
+  "employee_id": "",
+  "appointment_id": "",
+  "conversation_id": "",
+  "stage": "",
+  "intent": "",
+  "message": ""
+}
+```
+
+Adaptar os nomes aos campos existentes no sistema.
+
+Não criar estruturas duplicadas se já existir um mecanismo de contexto funcionando.
+
+---
+
+# 7. SUPABASE COMO FONTE DA VERDADE
+
+O Supabase/sistema será a fonte oficial dos dados.
+
+O n8n deve consultar os dados reais antes de responder.
+
+A IA nunca deve ser considerada fonte oficial de informação.
+
+Exemplo:
+
+```text
+SUPABASE
+   ↓
+Preço real
+   ↓
+n8n
+   ↓
+IA
+   ↓
+Resposta
+```
+
+Nunca:
+
+```text
+Cliente
+↓
+IA
+↓
+IA inventa preço
+```
+
+---
+
+# 8. CONSULTAS ANTES DA IA
+
+Esta é uma regra obrigatória.
+
+Sempre que uma informação puder ser obtida do sistema, ela deverá ser consultada **ANTES do nó do agente de IA**.
+
+Exemplo:
+
+Cliente:
+
+> Quanto custa o banho?
+
+Fluxo:
+
+```text
+Mensagem
+↓
+Identificar loja
+↓
+Consultar serviço
+↓
+Consultar preço
+↓
+Obter resultado real
+↓
+Enviar somente resultado necessário para IA
+↓
+IA humaniza resposta
+↓
+Evolution API
+```
+
+---
+
+# 9. REDUÇÃO DE TOKENS
+
+O agente de IA deve receber somente as informações necessárias.
+
+Não enviar:
+
+* JSON gigante;
+* tabelas inteiras;
+* dados de outras lojas;
+* histórico desnecessário;
+* informações duplicadas;
+* dados que não têm relação com a pergunta.
+
+Exemplo:
+
+Em vez de enviar centenas de campos:
+
+```json
+{
+  "store": "...",
+  "services": "...",
+  "employees": "...",
+  "customers": "..."
+}
+```
+
+Enviar apenas:
+
+```json
+{
+  "store": "Pet Shop Centro",
+  "intent": "consulta_preco",
+  "service": "Banho",
+  "price": 50
+}
+```
+
+---
+
+# 10. AGENTE DE IA
+
+O agente de IA terá uma função específica:
+
+## HUMANIZAR A COMUNICAÇÃO.
+
+Ele deverá:
+
+* interpretar o contexto;
+* organizar a resposta;
+* deixar a mensagem natural;
+* ser simpático;
+* utilizar linguagem simples;
+* utilizar pequenos parágrafos;
+* utilizar emojis com moderação;
+* evitar respostas robóticas.
+
+A IA não deverá tomar decisões de negócio que dependam do banco.
+
+---
+
+# 11. PROIBIÇÃO DE INVENTAR INFORMAÇÕES
+
+A IA nunca poderá inventar:
+
+* preços;
+* serviços;
+* horários;
+* funcionários;
+* disponibilidade;
+* tempo de espera;
+* horário de funcionamento;
+* dados de clientes;
+* dados de pets;
+* agendamentos;
+* confirmações;
+* cancelamentos;
+* políticas.
+
+Se a informação não estiver disponível:
+
+**não inventar.**
+
+Exemplo:
+
+> "Vou verificar essa informação para você. 😊"
+
+Ou:
+
+> "Não encontrei essa informação disponível no momento."
+
+---
+
+# 12. REGRA DE CONFLITO
+
+Se a IA receber uma informação diferente da informação retornada pelo sistema:
+
+**O SISTEMA SEMPRE VENCE.**
+
+Exemplo:
+
+Sistema:
+
+```text
+Preço = R$ 70
+```
+
+A IA deverá informar:
+
+```text
+R$ 70
+```
+
+mesmo que seu conhecimento ou contexto anterior indique outro valor.
+
+---
+
+# 13. CADASTRO DO CLIENTE
+
+Quando o cliente não estiver cadastrado:
+
+```text
+Consultar cliente
+↓
+Não encontrado
+↓
+Perguntar se deseja cadastrar
+```
+
+Exemplo:
+
+> Ainda não encontrei seu cadastro por aqui. 😊
+>
+> Quer fazer seu cadastro para continuarmos?
+
+Se aceitar:
+
+```text
+Coletar dados necessários
+↓
+Validar
+↓
+Enviar para Supabase/API
+↓
+Verificar resposta
+↓
+Somente se sucesso:
+continuar atendimento
+```
+
+Não considerar cadastro concluído sem confirmação do sistema.
+
+---
+
+# 14. PETS
+
+Um cliente pode possuir vários pets.
+
+Consultar os pets relacionados ao:
+
+```text
+customer_id
++
+store_id
+```
+
+Se houver vários:
+
+> Qual pet você gostaria de agendar? 🐶🐱
+>
+> 1️⃣ Thor
+> 2️⃣ Mel
+> 3️⃣ Nina
+
+Salvar o `pet_id` escolhido no contexto.
+
+---
+
+# 15. SERVIÇOS
+
+Consultar serviços da loja selecionada.
+
+Sempre utilizar:
+
+```text
+store_id
+```
+
+O agente de IA não pode criar ou sugerir serviços que não estejam no retorno da consulta.
+
+---
+
+# 16. PREÇOS
+
+Os preços deverão ser consultados diretamente no sistema.
+
+Nunca permitir que a IA estime valores.
+
+Se o preço depender de:
+
+* porte;
+* raça;
+* peso;
+* tamanho;
+* serviço;
+* pet;
+* funcionário;
+* horário;
+
+consultar as regras existentes antes de enviar a informação para IA.
+
+---
+
+# 17. FUNCIONÁRIOS
+
+Funcionários devem ser consultados exclusivamente dentro da loja selecionada.
+
+Nunca apresentar funcionários pertencentes a outra loja.
+
+---
+
+# 18. HORÁRIO DE FUNCIONAMENTO
+
+Consultar os horários reais da loja.
+
+A IA não pode assumir:
+
+> "A loja funciona das 8h às 18h."
+
+a menos que o sistema tenha retornado essa informação.
+
+---
+
+# 19. DISPONIBILIDADE E TEMPO DE ESPERA
+
+Quando o cliente perguntar sobre:
+
+* horário disponível;
+* fila;
+* tempo de espera;
+* disponibilidade;
+* próximo horário;
+
+consultar o sistema primeiro.
+
+Somente o resultado real poderá ser enviado ao cliente.
+
+---
+
+# 20. AGENDAMENTO
+
+O fluxo deve ser:
+
+```text
+Cliente solicita agendamento
+↓
+Identificar loja
+↓
+Identificar cliente
+↓
+Identificar pet
+↓
+Identificar serviço
+↓
+Consultar disponibilidade
+↓
+Consultar horário
+↓
+Consultar funcionário se necessário
+↓
+Montar solicitação
+↓
+Enviar ao sistema
+↓
+Verificar resposta
+↓
+Salvar appointment_id
+↓
+Verificar status
+↓
+Responder cliente
+```
+
+---
+
+# 21. NUNCA CONFIRMAR AGENDAMENTO SEM CONFIRMAÇÃO REAL
+
+Essa regra é obrigatória.
+
+Se o sistema retornar:
+
+```text
+PENDING
+```
+
+a IA não pode responder:
+
+> Seu agendamento está confirmado.
+
+Deve responder algo como:
+
+> Prontinho! 😊
+>
+> Enviei sua solicitação para a loja.
+>
+> Assim que o agendamento for confirmado, aviso você por aqui. 💙
+
+Somente se o sistema retornar:
+
+```text
+CONFIRMED
+```
+
+poderá informar:
+
+> Tudo certo! 🐶💙
+>
+> Seu agendamento foi confirmado!
+
+---
+
+# 22. NOTIFICAÇÃO NO SISTEMA
+
+Quando o cliente solicitar um agendamento:
+
+```text
+n8n
+↓
+Sistema/Supabase
+↓
+Criar solicitação
+↓
+Notificar painel/app/site
+```
+
+A equipe deverá conseguir visualizar a solicitação.
+
+Preservar os identificadores existentes.
+
+Exemplo:
+
+```text
+store_id
+customer_id
+pet_id
+service_id
+employee_id
+appointment_id
+date
+time
+status
+notes
+```
+
+Utilizar os campos reais existentes no sistema.
+
+---
+
+# 23. CONFIRMAÇÃO PELO SISTEMA
+
+Quando alguém confirmar o agendamento no site/app:
+
+```text
+Sistema
+↓
+status = CONFIRMED
+↓
+Webhook/evento
+↓
+n8n
+↓
+localizar cliente
+↓
+localizar conversa
+↓
+enviar WhatsApp
+```
+
+Mensagem:
+
+> Boa notícia! 🐶💙
+>
+> Seu agendamento foi confirmado!
+>
+> 📅 Data: {{data}}
+> ⏰ Horário: {{horario}}
+> ✂️ Serviço: {{servico}}
+> 🏪 Loja: {{loja}}
+>
+> Esperamos vocês! 😊
+
+Utilizar somente dados retornados pelo sistema.
+
+---
+
+# 24. ESTÁGIOS DO ATENDIMENTO
+
+Os estágios existentes no sistema deverão ser respeitados.
+
+Não criar novos estágios sem necessidade.
+
+Exemplos possíveis:
+
+```text
+NOVO
+EM_ATENDIMENTO
+AGUARDANDO_CLIENTE
+AGUARDANDO_CONFIRMACAO
+CONFIRMADO
+EM_EXECUCAO
+FINALIZADO
+CANCELADO
+```
+
+Utilizar os valores reais existentes no sistema.
+
+Quando houver mudança de estágio relevante:
+
+```text
+Sistema
+↓
+n8n
+↓
+identificar cliente
+↓
+identificar conversa
+↓
+enviar atualização WhatsApp
+```
+
+---
+
+# 25. LEMBRETES
+
+Os lembretes deverão funcionar dentro do mesmo workflow.
+
+Não criar outro workflow.
+
+Pode existir um segundo gatilho dentro do workflow, por exemplo:
+
+```text
+Webhook Evolution
+       │
+       ├── Atendimento
+       │
+       └── Schedule Trigger
+               ↓
+           Lembretes
+```
+
+## 24 HORAS ANTES
+
+Enviar lembrete somente para agendamentos válidos e confirmados.
+
+Exemplo:
+
+> Olá! 😊
+>
+> Passando para lembrar que o atendimento do seu pet está agendado para amanhã.
+>
+> 🐶 Pet: {{pet}}
+> ✂️ Serviço: {{servico}}
+> 📅 Data: {{data}}
+> ⏰ Horário: {{horario}}
+>
+> Até lá! 💙
+
+## 2 HORAS ANTES
+
+> Olá! 🐶💙
+>
+> Seu atendimento está chegando!
+>
+> Daqui a aproximadamente 2 horas, {{pet}} tem um atendimento agendado.
+>
+> ✂️ Serviço: {{servico}}
+> ⏰ Horário: {{horario}}
+>
+> Até já! 😊
+
+---
+
+# 26. EVITAR DUPLICIDADE DE LEMBRETES
+
+Antes de enviar um lembrete:
+
+```text
+Verificar agendamento
+↓
+Está confirmado?
+↓
+Está dentro da janela correta?
+↓
+Lembrete já foi enviado?
+```
+
+Se já tiver sido enviado:
+
+**não enviar novamente.**
+
+Registrar o envio utilizando a estrutura existente ou criar um mecanismo simples de controle caso ainda não exista.
+
+---
+
+# 27. EVENTOS RECEBIDOS DO SISTEMA
+
+O mesmo workflow deverá ser capaz de processar eventos relevantes enviados pelo sistema.
+
+Exemplos:
+
+```text
+agendamento confirmado
+agendamento cancelado
+agendamento alterado
+status alterado
+atendimento finalizado
+```
+
+Fluxo:
+
+```text
+Evento
+↓
+Validar
+↓
+Identificar loja
+↓
+Identificar cliente
+↓
+Identificar agendamento
+↓
+Identificar novo status
+↓
+Atualizar contexto
+↓
+Enviar WhatsApp
+```
+
+---
+
+# 28. EVOLUTION API
+
+A integração atual com a Evolution API deverá ser preservada.
+
+Antes de modificar qualquer nó da Evolution:
+
+1. verificar como ele funciona;
+2. verificar payload;
+3. verificar autenticação;
+4. verificar URL;
+5. verificar instância;
+6. verificar tratamento de erro.
+
+Não substituir uma integração funcionando sem necessidade.
+
+---
+
+# 29. TRATAMENTO DE ERROS
+
+Se o Supabase/API falhar:
+
+Não informar que a operação foi concluída.
+
+Exemplo:
+
+> Tive um probleminha para consultar o sistema agora. 😕
+>
+> Pode tentar novamente em alguns instantes?
+
+Se o cadastro falhar:
+
+Não dizer que o cadastro foi realizado.
+
+Se o agendamento falhar:
+
+Não dizer que foi agendado.
+
+Se a confirmação não existir:
+
+Não dizer que está confirmado.
+
+---
+
+# 30. IDEMPOTÊNCIA
+
+Evitar processamento duplicado.
+
+Utilizar, quando disponíveis:
+
+```text
+message_id
+event_id
+appointment_id
+customer_id
+conversation_id
+```
+
+Evitar:
+
+* cadastro duplicado;
+* agendamento duplicado;
+* confirmação duplicada;
+* lembrete duplicado;
+* processamento duplicado do mesmo webhook.
+
+---
+
+# 31. MENSAGENS
+
+As respostas deverão ser:
+
+* simpáticas;
+* humanas;
+* curtas;
+* organizadas;
+* fáceis de ler.
+
+Preferir:
+
+```text
+Olá! 😊
+
+Encontrei seu cadastro.
+
+Seu pet Thor possui um agendamento para amanhã.
+
+Quer consultar os detalhes?
+```
+
+Em vez de:
+
+```text
+Olá encontrei seu cadastro seu pet Thor possui um agendamento amanhã deseja consultar os detalhes?
+```
+
+Utilizar parágrafos.
+
+Evitar textos enormes.
+
+---
+
+# 32. AGENTE IA — PROMPT INTERNO
+
+O agente deverá seguir estas regras:
+
+```text
+Você é o atendente virtual do PetFlow.
+
+Sua função é conversar com o cliente de forma simpática, natural e humanizada.
+
+Os dados fornecidos pelos nós anteriores são provenientes do sistema.
+
+Você NÃO é a fonte dos dados.
+
+Nunca invente informações.
+
+Nunca invente preços.
+
+Nunca invente horários.
+
+Nunca invente serviços.
+
+Nunca invente funcionários.
+
+Nunca invente disponibilidade.
+
+Nunca invente tempo de espera.
+
+Nunca invente dados do cliente.
+
+Nunca invente dados do pet.
+
+Nunca confirme um agendamento sem confirmação explícita do sistema.
+
+Nunca diga que algo foi realizado se o sistema não confirmou a operação.
+
+Nunca utilize informações de outra loja.
+
+Respeite sempre o store_id do contexto atual.
+
+Se uma informação não estiver disponível, não tente adivinhar.
+
+Se necessário, informe que precisa verificar a informação.
+
+Responda de maneira simpática, clara e natural.
+
+Use parágrafos curtos.
+
+Use emojis com moderação.
+
+Não seja excessivamente formal.
+
+Não mencione detalhes técnicos, banco de dados, APIs, n8n ou processos internos ao cliente.
+
+O sistema é a fonte da verdade.
+```
+
+---
+
+# 33. REGRA DE DECISÃO
+
+A IA não deve decidir se uma operação foi realizada.
+
+Quem determina isso é o resultado da operação.
+
+Exemplo:
+
+```text
+SUPABASE/API
+       ↓
+status = success
+       ↓
+n8n
+       ↓
+IA
+       ↓
+"Cadastro realizado com sucesso."
+```
+
+Mas:
+
+```text
+SUPABASE/API
+       ↓
+status = error
+       ↓
+n8n
+       ↓
+IA
+       ↓
+"Não consegui concluir seu cadastro neste momento."
+```
+
+---
+
+# 34. ESTRUTURA DE DECISÃO
+
+Sempre que possível, as decisões importantes deverão acontecer em nós determinísticos do n8n:
+
+* IF;
+* Switch;
+* Code;
+* Supabase;
+* HTTP Request.
+
+A IA deve ser usada principalmente para linguagem natural.
+
+Evitar colocar regras críticas exclusivamente dentro do prompt da IA.
+
+---
+
+# 35. FLUXO PRINCIPAL FINAL
+
+O fluxo principal esperado é:
+
+```text
+EVOLUTION API
+      ↓
+WEBHOOK
+      ↓
+NORMALIZAR MENSAGEM
+      ↓
+IDENTIFICAR TELEFONE
+      ↓
+IDENTIFICAR EVENTO
+      ↓
+CONSULTAR LOJAS
+      ↓
+┌───────────────────────┐
+│ Quantas lojas existem?│
+└───────────┬───────────┘
+            │
+       ┌────┴────┐
+       │         │
+       ▼         ▼
+      1 loja   várias lojas
+       │         │
+       │         ▼
+       │    perguntar loja
+       │         │
+       │         ▼
+       └────┬────┘
+            ▼
+       STORE_ID
+            ↓
+    CARREGAR CONTEXTO
+            ↓
+   IDENTIFICAR CLIENTE
+            ↓
+    IDENTIFICAR INTENÇÃO
+            ↓
+     CONSULTAR SISTEMA
+            ↓
+    EXECUTAR OPERAÇÃO
+            ↓
+     VALIDAR RESULTADO
+            ↓
+    PREPARAR CONTEXTO
+            ↓
+        AGENTE IA
+            ↓
+     RESPOSTA HUMANIZADA
+            ↓
+      EVOLUTION API
+            ↓
+          WHATSAPP
+```
+
+---
+
+# 36. FLUXO DE LEMBRETES
+
+Dentro do mesmo workflow:
+
+```text
+SCHEDULE TRIGGER
+       ↓
+CONSULTAR AGENDAMENTOS
+       ↓
+FILTRAR CONFIRMADOS
+       ↓
+CALCULAR TEMPO
+       ↓
+24H OU 2H?
+       ↓
+VERIFICAR SE JÁ ENVIOU
+       ↓
+PREPARAR MENSAGEM
+       ↓
+EVOLUTION API
+       ↓
+REGISTRAR ENVIO
+```
+
+---
+
+# 37. FLUXO DE CONFIRMAÇÃO
+
+Dentro do mesmo workflow:
+
+```text
+EVENTO DO SISTEMA
+       ↓
+VALIDAR EVENTO
+       ↓
+STATUS = CONFIRMADO?
+       ↓
+SIM
+       ↓
+LOCALIZAR CLIENTE
+       ↓
+LOCALIZAR CONVERSA
+       ↓
+MONTAR DADOS
+       ↓
+AGENTE IA
+       ↓
+EVOLUTION API
+       ↓
+WHATSAPP
+```
+
+---
+
+# 38. FLUXO DE ATUALIZAÇÃO DE STATUS
+
+```text
+EVENTO DO SISTEMA
+       ↓
+NOVO STATUS
+       ↓
+IDENTIFICAR CLIENTE
+       ↓
+IDENTIFICAR AGENDAMENTO
+       ↓
+ATUALIZAR CONTEXTO
+       ↓
+GERAR MENSAGEM
+       ↓
+EVOLUTION API
+```
+
+---
+
+# 39. O QUE NÃO FAZER
+
+Não:
+
+* criar múltiplos workflows;
+* duplicar funcionalidades existentes;
+* remover nós funcionando sem necessidade;
+* alterar credenciais;
+* inventar tabelas;
+* inventar campos;
+* inventar endpoints;
+* inventar payloads;
+* inventar status;
+* inventar preços;
+* inventar horários;
+* permitir que a IA confirme algo sem retorno do sistema;
+* misturar dados de lojas;
+* enviar dados desnecessários para IA;
+* colocar toda a lógica de negócio dentro da IA.
+
+Se alguma informação necessária não estiver disponível no workflow atual, **identifique primeiro o que está faltando antes de inventar uma implementação.**
+
+---
+
+# 40. TESTES OBRIGATÓRIOS
+
+Após implementar, testar:
+
+### Cliente
+
+* número não cadastrado;
+* número cadastrado;
+* cliente com uma loja;
+* cliente com várias lojas.
+
+### Loja
+
+* uma loja;
+* duas lojas;
+* seleção inválida;
+* loja inexistente.
+
+### Pets
+
+* nenhum pet;
+* um pet;
+* vários pets.
+
+### Serviços
+
+* serviço existente;
+* serviço inexistente;
+* preço existente;
+* preço não encontrado.
+
+### Horários
+
+* loja aberta;
+* loja fechada;
+* horário disponível;
+* horário indisponível.
+
+### Agendamento
+
+* solicitação criada;
+* solicitação recusada;
+* aguardando confirmação;
+* confirmado;
+* cancelado;
+* alterado.
+
+### Status
+
+* mudança de estágio;
+* envio da atualização;
+* cliente sem conversa ativa.
+
+### Lembretes
+
+* 24 horas;
+* 2 horas;
+* lembrete já enviado;
+* agendamento cancelado;
+* agendamento não confirmado.
+
+### Falhas
+
+* Supabase indisponível;
+* API indisponível;
+* Evolution API indisponível;
+* timeout;
+* payload inválido;
+* webhook duplicado.
+
+---
+
+# 41. RESULTADO ESPERADO
+
+Ao finalizar, o workflow deverá permitir:
+
+```text
+Cliente
+   ↓
+WhatsApp
+   ↓
+Evolution API
+   ↓
+n8n
+   ↓
+Identificar cliente
+   ↓
+Identificar loja
+   ↓
+Manter contexto
+   ↓
+Consultar Supabase
+   ↓
+Executar operação
+   ↓
+Validar resultado
+   ↓
+IA humaniza
+   ↓
+Evolution API
+   ↓
+Cliente
+```
+
+Tudo dentro de **um único workflow n8n**.
+
+---
+
+# 42. PRINCÍPIO CENTRAL DO PROJETO
+
+A arquitetura final deve respeitar:
+
+```text
+┌─────────────────────────────────┐
+│         SUPABASE / SISTEMA      │
+│          FONTE DA VERDADE       │
+└────────────────┬────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────┐
+│               N8N               │
+│          ORQUESTRADOR           │
+│                                 │
+│ consulta                        │
+│ valida                          │
+│ executa                         │
+│ controla                        │
+│ sincroniza                      │
+└────────────────┬────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────┐
+│               IA                │
+│       COMUNICAÇÃO HUMANA        │
+│                                 │
+│ interpreta                       │
+│ organiza                         │
+│ humaniza                         │
+└────────────────┬────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────┐
+│          EVOLUTION API          │
+│          WHATSAPP               │
+└─────────────────────────────────┘
+```
+
+## REGRA FINAL
+
+**Sistema fornece os dados.**
+
+**n8n toma conta da lógica e das operações.**
+
+**IA humaniza a comunicação.**
+
+**Evolution API conversa com o cliente.**
+
+E tudo deve funcionar dentro de **UM ÚNICO WORKFLOW n8n**, aproveitando ao máximo a estrutura que já existe.
