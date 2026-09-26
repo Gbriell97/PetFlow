@@ -1,0 +1,330 @@
+{
+  "name": "PetFlow · WhatsApp Bot (Evolution)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-inbound",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "n-webhook",
+      "name": "01 · Webhook Evolution",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Nó 1 — Extrai telefone/texto do payload da Evolution v2; ignora o que não for mensagem de cliente\n// Também captura: instance (nome da instância que recebeu), storePhone (número da loja, quando presente)\n// e messageId (key.id — usado para idempotência no nó da máquina de estados).\nconst out = [];\nfor (const item of $input.all()) {\n  const body = item.json.body || item.json;\n  if (body.event !== 'messages.upsert') continue;\n  const d = body.data || {};\n  const key = d.key || {};\n  if (key.fromMe) continue;\n  const jid = key.remoteJid || '';\n  if (!jid.endsWith('@s.whatsapp.net')) continue; // ignora grupos/status/broadcast\n  const msg = d.message || {};\n  const text = (msg.conversation || (msg.extendedTextMessage && msg.extendedTextMessage.text) || '').trim();\n  if (!text) continue;\n\n  // Identifica qual conexão/número da loja recebeu a mensagem (para multi-loja)\n  const instance = (body.instance || d.instance || '').trim();\n  // Evolution v2 nem sempre envia o número de destino; tenta os campos conhecidos\n  const owner = (body.sender || d.sender || body.owner || d.owner || d.destination || '').trim();\n  const storePhone = String(owner).replace('@s.whatsapp.net', '').replace(/\\D/g, '');\n\n  out.push({\n    json: {\n      phone: jid.replace('@s.whatsapp.net', ''),\n      text,\n      pushName: d.pushName || '',\n      instance,\n      storePhone,\n      messageId: key.id || ''\n    }\n  });\n}\nreturn out;\n"
+      },
+      "id": "n-extract",
+      "name": "02 · Extrair mensagem",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -980,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Nó 2 — Máquina de estados da conversa (fluxo determinístico, sem IA)\n// Entrada: { phone, text, pushName, instance, storePhone, messageId }\n// Saída:  { phone, reply, mode, userText, systemPrompt, unitName }\n// mode: 'none' (silêncio) | 'fixed' (envia direto) | 'polish' (IA humaniza) | 'fallback' (IA responde livre)\n//\n// MULTI-LOJA N:N: a loja é resolvida pela conexão que recebeu a mensagem\n// (storePhone/instance → whatsapp_connections → units). Lógica reutilizada\n// do chat-handler: telefone com/sem DDI → instance_name → units.phone →\n// fallback unidade padrão (PETFLOW_API_KEY).\n//   - 1 loja  → seleciona automaticamente e salva store_id no contexto\n//   - N lojas → menu numerado; escolha validada e salva no contexto\n//   - contexto com store_id válido → reutiliza, não pergunta de novo\n//   - troca de loja: somente comando explícito (\"trocar loja\")\n\nconst SUPA = $env.SUPABASE_URL;\nconst SKEY = $env.SUPABASE_SERVICE_KEY;\nconst APIKEY = $env.PETFLOW_API_KEY; // fallback: unidade padrão\nconst helpers = this.helpers;\nconst H = { apikey: SKEY, Authorization: 'Bearer ' + SKEY, 'Content-Type': 'application/json' };\n\nasync function req(method, path, body, extraHeaders) {\n  const opt = { method, url: SUPA + path, headers: Object.assign({}, H, extraHeaders || {}), json: true };\n  if (body !== undefined) opt.body = body;\n  return await helpers.httpRequest(opt);\n}\n\nconst digits = s => String(s || '').replace(/\\D/g, '');\nconst SIZE_LABEL = { SMALL: 'Pequeno', MEDIUM: 'Médio', LARGE: 'Grande' };\nconst SPECIES_LABEL = { dog: 'Cachorro', cat: 'Gato' };\n\nfunction cap(s) { return (s || '').trim().replace(/\\s+/g, ' ').replace(/\\b\\w/g, c => c.toUpperCase()); }\nfunction fmtDate(iso, tz) {\n  return new Date(iso).toLocaleDateString('pt-BR', { timeZone: tz, weekday: 'short', day: '2-digit', month: '2-digit' });\n}\nfunction fmtTime(iso, tz) {\n  return new Date(iso).toLocaleTimeString('pt-BR', { timeZone: tz, hour: '2-digit', minute: '2-digit' });\n}\nfunction menuText(unit, name) {\n  return '🐾 *' + unit.name + '*\\n\\n' + (name ? 'Olá, *' + name.split(' ')[0] + '*! ' : 'Olá! ') +\n    'O que você deseja?\\n\\n1️⃣ Agendar serviço\\n2️⃣ Meus agendamentos\\n3️⃣ Falar com atendente\\n\\nDigite o número da opção.';\n}\n\n// ============ RESOLUÇÃO DE LOJAS (multi-loja N:N) ============\n// Reutiliza a estratégia do chat-handler. Retorna a LISTA de lojas atendidas\n// pela conexão que recebeu a mensagem.\nasync function resolveUnits(storePhone, instance) {\n  const storeDigits = digits(storePhone);\n  const inst = (instance || '').trim();\n  const unitIds = new Set();\n\n  // 1. whatsapp_connections ativas por número (variações com/sem DDI 55)\n  if (storeDigits) {\n    const variants = [storeDigits];\n    if (storeDigits.startsWith('55') && storeDigits.length > 11) variants.push(storeDigits.slice(2));\n    else variants.push('55' + storeDigits);\n    try {\n      const rows = await req('GET', '/rest/v1/whatsapp_connections?active=eq.true&phone=in.(' + variants.join(',') + ')&select=unit_id');\n      for (const r of rows || []) if (r.unit_id) unitIds.add(r.unit_id);\n    } catch (e) { console.log('resolve por telefone falhou: ' + (e.message || e)); }\n  }\n\n  // 2. whatsapp_connections por instance_name\n  if (unitIds.size === 0 && inst) {\n    try {\n      const rows = await req('GET', '/rest/v1/whatsapp_connections?active=eq.true&instance_name=eq.' + encodeURIComponent(inst) + '&select=unit_id');\n      for (const r of rows || []) if (r.unit_id) unitIds.add(r.unit_id);\n    } catch (e) { console.log('resolve por instância falhou: ' + (e.message || e)); }\n  }\n\n  // 3. telefone cadastrado direto na unidade\n  if (unitIds.size === 0 && storeDigits) {\n    const variants = [storeDigits];\n    if (storeDigits.startsWith('55') && storeDigits.length > 11) variants.push(storeDigits.slice(2));\n    else variants.push('55' + storeDigits);\n    try {\n      const rows = await req('GET', '/rest/v1/units?is_deleted=eq.false&phone=in.(' + variants.join(',') + ')&select=id');\n      for (const r of rows || []) if (r.id) unitIds.add(r.id);\n    } catch (e) { console.log('resolve por units.phone falhou: ' + (e.message || e)); }\n  }\n\n  if (unitIds.size > 0) {\n    const units = await req('GET', '/rest/v1/units?id=in.(' + [...unitIds].join(',') + ')&is_deleted=eq.false&select=id,name,timezone,api_key,city&order=name.asc');\n    if (Array.isArray(units) && units.length > 0) return units;\n  }\n\n  // 4. fallback: unidade padrão (compatibilidade com comportamento anterior)\n  const def = await req('GET', '/rest/v1/units?api_key=eq.' + APIKEY + '&is_deleted=eq.false&select=id,name,timezone,api_key,city');\n  return def && def[0] ? [def[0]] : [];\n}\n\nfunction storeMenuText(units) {\n  return 'Olá! 😊\\n\\nEncontrei mais de uma loja vinculada a este número.\\n\\nQual loja você deseja acessar?\\n' +\n    units.map((u, i) => '\\n' + (i + 1) + '️⃣ ' + u.name + (u.city ? ' — ' + u.city : '')).join('');\n}\n\nconst results = [];\n\nfor (const item of $input.all()) {\n  const { phone, text, pushName, instance, storePhone, messageId } = item.json;\n  const lower = text.toLowerCase().trim();\n  let reply = null, mode = 'polish';\n\n  // Função local para persistir o contexto da conversa (contexto central)\n  async function saveState(st, unit) {\n    await req('POST', '/rest/v1/conversation_state',\n      { phone, unit_id: unit ? unit.id : (st.data.unit_id || null), state: st.state, data: st.data, handoff: st.handoff, updated_at: new Date().toISOString() },\n      { Prefer: 'resolution=merge-duplicates' });\n  }\n\n  try {\n    // --- Contexto da conversa (carrega antes de tudo: idempotência + store_id) ---\n    const stArr = await req('GET', '/rest/v1/conversation_state?phone=eq.' + encodeURIComponent(phone) + '&select=*');\n    let st = stArr[0] || { phone, state: 'MENU', data: {}, handoff: false };\n    st.data = st.data || {};\n\n    // --- Idempotência: mesmo webhook entregue 2x não processa de novo ---\n    if (messageId && st.data.last_msg_id === messageId) {\n      results.push({ json: { phone, reply: null, mode: 'none' } });\n      continue;\n    }\n    if (messageId) st.data.last_msg_id = messageId;\n\n    // --- Resolver lojas vinculadas à conexão que recebeu a mensagem ---\n    const units = await resolveUnits(storePhone, instance);\n    if (!units.length) { results.push({ json: { phone, reply: 'Loja não configurada.', mode: 'fixed' } }); continue; }\n\n    // --- Seleção de loja (regra de múltiplas lojas) ---\n    let unit = null;\n    if (units.length === 1) {\n      unit = units[0];\n      st.data.unit_id = unit.id; // 1 loja: seleciona automaticamente\n    } else {\n      // Troca de loja somente por solicitação explícita do cliente\n      if (lower === 'trocar loja' || lower === 'trocar de loja' || lower === 'mudar loja') {\n        st.data.unit_id = null;\n        st.state = 'SELECT_STORE';\n        st.data.units = units.map(u => ({ id: u.id, name: u.name, city: u.city }));\n        reply = 'Sem problema! 😊\\n\\nQual loja você deseja acessar?\\n' +\n          st.data.units.map((u, i) => '\\n' + (i + 1) + '️⃣ ' + u.name + (u.city ? ' — ' + u.city : '')).join('');\n        await saveState(st, null);\n        results.push({ json: { phone, reply, mode: 'polish', userText: text, unitName: '' } });\n        continue;\n      }\n\n      // Contexto já tem store_id válido? Reutiliza sem perguntar de novo.\n      if (st.data.unit_id) unit = units.find(u => u.id === st.data.unit_id) || null;\n\n      if (!unit && st.state !== 'SELECT_STORE') {\n        st.state = 'SELECT_STORE';\n        st.data.units = units.map(u => ({ id: u.id, name: u.name, city: u.city }));\n        await saveState(st, null);\n        results.push({ json: { phone, reply: storeMenuText(st.data.units), mode: 'polish', userText: text, unitName: '' } });\n        continue;\n      }\n\n      if (!unit && st.state === 'SELECT_STORE') {\n        // Cliente está escolhendo a loja: aceita número ou nome exato\n        const list = st.data.units || [];\n        let idx = /^\\d{1,2}$/.test(lower) ? parseInt(lower, 10) - 1 : -1;\n        if (idx < 0) idx = list.findIndex(u => (u.name || '').toLowerCase() === lower);\n        if (idx >= 0 && idx < list.length) {\n          unit = units.find(u => u.id === list[idx].id) || null;\n          if (unit) {\n            st.data.unit_id = unit.id; // salva store_id no contexto\n            st.state = 'MENU'; st.data.units = undefined;\n            reply = 'Perfeito! Você está falando com *' + unit.name + '*. 🐾\\n\\n' + menuText(unit, null);\n            await saveState(st, unit);\n            results.push({ json: { phone, reply, mode: 'polish', userText: text, unitName: unit.name } });\n            continue;\n          }\n        }\n        // Escolha inválida → valida e pergunta de novo\n        await saveState(st, null);\n        results.push({ json: { phone, reply: 'Não entendi a opção. 🤔\\n\\n' + storeMenuText(list), mode: 'polish', userText: text, unitName: '' } });\n        continue;\n      }\n    }\n\n    const tz = unit.timezone || 'America/Sao_Paulo';\n    const unitKey = unit.api_key || APIKEY;\n\n    // --- Cliente + pets (isolado pela loja selecionada) ---\n    const custArr = await req('GET', '/rest/v1/customers?unit_id=eq.' + unit.id +\n      '&phone=ilike.*' + phone.slice(-8) + '*&is_deleted=eq.false&select=id,name,phone,pets(id,name,species,size,active,is_deleted)&limit=1');\n    let customer = custArr[0] || null;\n    const activePets = () => (customer && customer.pets || []).filter(p => p.active && !p.is_deleted);\n\n    // --- Comandos globais ---\n    if (['menu', 'inicio', 'início', 'voltar', 'oi', 'olá', 'ola', 'bom dia', 'boa tarde', 'boa noite'].includes(lower)) {\n      st.state = 'MENU'; st.data = { unit_id: st.data.unit_id, last_msg_id: st.data.last_msg_id }; st.handoff = false;\n    } else if (lower === 'cancelar') {\n      st.state = 'MENU'; st.data = { unit_id: st.data.unit_id, last_msg_id: st.data.last_msg_id };\n      reply = 'Tudo bem, cancelei. 🙂\\n\\n' + menuText(unit, customer && customer.name);\n    }\n\n    // --- Humano atendendo: bot fica mudo até cliente digitar \"menu\" ---\n    if (reply === null && st.handoff) {\n      results.push({ json: { phone, reply: null, mode: 'none' } });\n      await saveState(st, unit);\n      continue;\n    }\n\n    // ================= ESTADOS =================\n    if (reply === null) {\n      const S = st.state;\n\n      // ---- Novo cliente: cadastro ----\n      if (!customer && S !== 'ASK_NAME' && S !== 'ASK_PET_NAME' && S !== 'ASK_PET_SPECIES' && S !== 'ASK_PET_SIZE') {\n        st.state = 'ASK_NAME'; st.data = { unit_id: st.data.unit_id, last_msg_id: st.data.last_msg_id };\n        reply = 'Olá' + (pushName ? ' *' + pushName + '*' : '') + '! 👋 Bem-vindo(a) ao *' + unit.name + '*!\\n\\nVi que é sua primeira vez por aqui. Vamos fazer um cadastro rapidinho.\\n\\nQual é o seu *nome completo*?';\n      }\n      else if (S === 'ASK_NAME') {\n        const name = cap(text);\n        const created = await req('POST', '/rest/v1/customers', { unit_id: unit.id, name, phone, source: 'whatsapp' }, { Prefer: 'return=representation' });\n        customer = created[0];\n        customer.pets = [];\n        st.state = 'ASK_PET_NAME'; st.data = { unit_id: st.data.unit_id, last_msg_id: st.data.last_msg_id };\n        reply = 'Prazer, *' + name.split(' ')[0] + '*! ✅\\n\\nAgora me conta: qual o *nome do seu pet*?';\n      }\n      else if (S === 'ASK_PET_NAME') {\n        st.data.pet_name = cap(text);\n        st.state = 'ASK_PET_SPECIES';\n        reply = 'Que nome fofo! 🐶🐱\\n\\n*' + st.data.pet_name + '* é:\\n\\n1️⃣ Cachorro\\n2️⃣ Gato';\n      }\n      else if (S === 'ASK_PET_SPECIES') {\n        const sp = lower === '1' ? 'dog' : lower === '2' ? 'cat' : null;\n        if (!sp) reply = 'Digite *1* para Cachorro ou *2* para Gato.';\n        else {\n          st.data.species = sp;\n          st.state = 'ASK_PET_SIZE';\n          reply = 'E qual o *porte* de ' + st.data.pet_name + '?\\n\\n1️⃣ Pequeno (até 10kg)\\n2️⃣ Médio (10 a 25kg)\\n3️⃣ Grande (acima de 25kg)';\n        }\n      }\n      else if (S === 'ASK_PET_SIZE') {\n        const size = lower === '1' ? 'SMALL' : lower === '2' ? 'MEDIUM' : lower === '3' ? 'LARGE' : null;\n        if (!size) reply = 'Digite *1* (Pequeno), *2* (Médio) ou *3* (Grande).';\n        else {\n          await req('POST', '/rest/v1/pets', { unit_id: unit.id, customer_id: customer.id, name: st.data.pet_name, species: st.data.species, size, active: true }, { Prefer: 'return=minimal' });\n          st.state = 'MENU'; st.data = { unit_id: st.data.unit_id, last_msg_id: st.data.last_msg_id };\n          reply = 'Cadastro concluído! 🎉\\n\\n' + menuText(unit, customer.name);\n        }\n      }\n\n      // ---- MENU ----\n      else if (S === 'MENU') {\n        if (lower === '1') {\n          const pets = activePets();\n          if (pets.length === 0) {\n            st.state = 'ASK_PET_NAME'; st.data = { unit_id: st.data.unit_id, last_msg_id: st.data.last_msg_id };\n            reply = 'Você ainda não tem pet cadastrado. Qual o *nome do seu pet*?';\n          } else if (pets.length === 1) {\n            st.data.pet_id = pets[0].id; st.data.pet_name = pets[0].name; st.data.pet_size = pets[0].size;\n            st.state = 'BOOK_SERVICE';\n            const svc = await req('GET', '/rest/v1/services?unit_id=eq.' + unit.id + '&active=eq.true&booking_enabled=eq.true&is_deleted=eq.false&order=name.asc&select=id,name,prices:service_price_rules(criteria,price,active)');\n            const list = svc.map(s => ({ id: s.id, name: s.name, price: priceFor(s, pets[0].size) }));\n            st.data.services = list;\n            reply = 'Vamos agendar para *' + pets[0].name + '*! 🛁\\n\\nEscolha o serviço:\\n' +\n              list.map((s, i) => '\\n' + (i + 1) + '️⃣ ' + s.name + (s.price ? ' — R$ ' + s.price.toFixed(2) : '')).join('');\n          } else {\n            st.state = 'BOOK_PET';\n            st.data.pets = pets.map(p => ({ id: p.id, name: p.name, size: p.size }));\n            reply = 'Para qual pet é o agendamento?\\n' + pets.map((p, i) => '\\n' + (i + 1) + '️⃣ ' + p.name + ' (' + (SPECIES_LABEL[p.species] || p.species) + ' ' + (SIZE_LABEL[p.size] || '') + ')').join('');\n          }\n        } else if (lower === '2') {\n          const appts = await req('GET', '/rest/v1/appointments?customer_id=eq.' + customer.id +\n            '&unit_id=eq.' + unit.id +\n            '&status=in.(PENDING,CONFIRMED)&is_deleted=eq.false&order=created_at.desc&limit=5' +\n            '&select=id,status,total_price,items:appointment_items(start_time,service:services(name),pet:pets(name))');\n          if (!appts.length) reply = 'Você não tem agendamentos ativos no momento. 📭\\n\\n' + menuText(unit, customer.name);\n          else {\n            const lines = appts.map(a => {\n              const it = (a.items || [])[0] || {};\n              const st2 = a.status === 'PENDING' ? '⏳ aguardando confirmação' : '✅ confirmado';\n              return '• *' + ((it.service || {}).name || 'Serviço') + '* p/ *' + ((it.pet || {}).name || 'pet') + '* — ' +\n                (it.start_time ? fmtDate(it.start_time, tz) + ' às ' + fmtTime(it.start_time, tz) : '') + ' — ' + st2;\n            });\n            reply = '📋 *Seus agendamentos:*\\n\\n' + lines.join('\\n') + '\\n\\nDigite *menu* para voltar.';\n          }\n        } else if (lower === '3') {\n          st.handoff = true;\n          reply = 'Certo! Já chamei um atendente humano. 👤\\n\\nEnquanto isso, o robozinho fica quietinho. Quando quiser voltar ao menu, digite *menu*.';\n        } else if (/^\\d+$/.test(lower)) {\n          reply = 'Opção inválida. 🤔\\n\\n' + menuText(unit, customer.name);\n        } else {\n          mode = 'fallback'; // IA responde pergunta livre\n        }\n      }\n\n      // ---- Escolher pet ----\n      else if (S === 'BOOK_PET') {\n        const n = parseInt(lower, 10);\n        const pets = st.data.pets || [];\n        if (!n || n < 1 || n > pets.length) reply = 'Digite o número do pet (1 a ' + pets.length + ') ou *cancelar*.';\n        else {\n          const pet = pets[n - 1];\n          st.data.pet_id = pet.id; st.data.pet_name = pet.name; st.data.pet_size = pet.size;\n          const svc = await req('GET', '/rest/v1/services?unit_id=eq.' + unit.id + '&active=eq.true&booking_enabled=eq.true&is_deleted=eq.false&order=name.asc&select=id,name,prices:service_price_rules(criteria,price,active)');\n          const list = svc.map(s => ({ id: s.id, name: s.name, price: priceFor(s, pet.size) }));\n          st.data.services = list;\n          st.state = 'BOOK_SERVICE';\n          reply = 'Serviço para *' + pet.name + '*:\\n' + list.map((s, i) => '\\n' + (i + 1) + '️⃣ ' + s.name + (s.price ? ' — R$ ' + s.price.toFixed(2) : '')).join('');\n        }\n      }\n\n      // ---- Escolher serviço ----\n      else if (S === 'BOOK_SERVICE') {\n        const n = parseInt(lower, 10);\n        const list = st.data.services || [];\n        if (!n || n < 1 || n > list.length) reply = 'Digite o número do serviço (1 a ' + list.length + ') ou *cancelar*.';\n        else {\n          const svc = list[n - 1];\n          st.data.service_id = svc.id; st.data.service_name = svc.name; st.data.price = svc.price;\n          const days = [];\n          const now = new Date();\n          for (let i = 1; i <= 7; i++) {\n            const d = new Date(now.getTime() + i * 86400000);\n            const iso = d.toLocaleDateString('sv-SE', { timeZone: tz });\n            days.push({ iso, label: fmtDate(d.toISOString(), tz) });\n          }\n          st.data.days = days;\n          st.state = 'BOOK_DAY';\n          reply = 'Ótima escolha! ✨ *' + svc.name + '* para *' + st.data.pet_name + '*' + (svc.price ? ' — R$ ' + svc.price.toFixed(2) : '') + '\\n\\nEscolha o dia:\\n' +\n            days.map((d, i) => '\\n' + (i + 1) + '️⃣ ' + d.label).join('');\n        }\n      }\n\n      // ---- Escolher dia → consultar horários ----\n      else if (S === 'BOOK_DAY') {\n        const n = parseInt(lower, 10);\n        const days = st.data.days || [];\n        if (!n || n < 1 || n > days.length) reply = 'Digite o número do dia (1 a ' + days.length + ') ou *cancelar*.';\n        else {\n          const day = days[n - 1];\n          const res = await helpers.httpRequest({\n            method: 'POST', url: SUPA + '/functions/v1/available-slots', json: true,\n            headers: { Authorization: 'Bearer ' + unitKey, 'Content-Type': 'application/json' },\n            body: { unit_id: unit.id, service_ids: [st.data.service_id], pet_ids: [st.data.pet_id], date: day.iso }\n          });\n          const slots = ((res && res.data && res.data.slots) || []).filter(s => s.available);\n          if (!slots.length) {\n            reply = '😕 Sem horários livres em *' + day.label + '*. Escolha outro dia:\\n' +\n              days.map((d, i) => '\\n' + (i + 1) + '️⃣ ' + d.label).join('');\n          } else {\n            const shown = slots.slice(0, 10);\n            st.data.slots = shown.map(s => ({ start: s.slot_start, employee_id: s.suggested_employee_id, price: s.total_price, duration: s.total_duration_minutes }));\n            st.data.day_label = day.label;\n            st.state = 'BOOK_TIME';\n            reply = '⏰ Horários disponíveis em *' + day.label + '*:\\n' +\n              shown.map((s, i) => '\\n' + (i + 1) + '️⃣ ' + fmtTime(s.slot_start, tz)).join('') +\n              (slots.length > 10 ? '\\n\\n(mostrando os 10 primeiros)' : '');\n          }\n        }\n      }\n\n      // ---- Escolher horário ----\n      else if (S === 'BOOK_TIME') {\n        const n = parseInt(lower, 10);\n        const slots = st.data.slots || [];\n        if (!n || n < 1 || n > slots.length) reply = 'Digite o número do horário (1 a ' + slots.length + ') ou *cancelar*.';\n        else {\n          st.data.slot = slots[n - 1];\n          st.state = 'BOOK_CONFIRM';\n          reply = '📋 *Confirme seu agendamento:*\\n\\n🐾 Pet: *' + st.data.pet_name + '*\\n✂️ Serviço: *' + st.data.service_name +\n            '*\\n📅 Data: *' + st.data.day_label + ' às ' + fmtTime(st.data.slot.start, tz) + '*' +\n            '\\n💰 Valor: *R$ ' + (st.data.slot.price != null ? st.data.slot.price.toFixed(2) : (st.data.price || 0).toFixed(2)) + '*\\n\\n1️⃣ Confirmar\\n2️⃣ Cancelar';\n        }\n      }\n\n      // ---- Confirmar ----\n      else if (S === 'BOOK_CONFIRM') {\n        if (lower === '1') {\n          try {\n            const res = await helpers.httpRequest({\n              method: 'POST', url: SUPA + '/functions/v1/appointments', json: true,\n              headers: { Authorization: 'Bearer ' + unitKey, 'Content-Type': 'application/json' },\n              body: {\n                customer_id: customer.id, service_ids: [st.data.service_id], pet_ids: [st.data.pet_id],\n                start_datetime: st.data.slot.start, employee_id: st.data.slot.employee_id || undefined,\n                notes: 'Agendado via WhatsApp (bot)'\n              }\n            });\n            if (res && res.success) {\n              reply = '🎉 Pedido enviado!\\n\\n*' + st.data.service_name + '* para *' + st.data.pet_name + '* em *' + st.data.day_label +\n                ' às ' + fmtTime(st.data.slot.start, tz) + '*.\\n\\n⏳ A loja vai confirmar em instantes e você recebe o aviso aqui mesmo.';\n            } else {\n              reply = '😕 Não consegui concluir: ' + ((res && res.error) || 'erro desconhecido') + '\\n\\nDigite *menu* para tentar de novo.';\n            }\n          } catch (e) {\n            reply = '😕 Não consegui concluir o agendamento (' + (e.message || 'erro') + ').\\n\\nDigite *menu* para tentar de novo.';\n          }\n          st.state = 'MENU'; st.data = { unit_id: st.data.unit_id, last_msg_id: st.data.last_msg_id };\n        } else if (lower === '2') {\n          st.state = 'MENU'; st.data = { unit_id: st.data.unit_id, last_msg_id: st.data.last_msg_id };\n          reply = 'Agendamento cancelado. 👍\\n\\n' + menuText(unit, customer.name);\n        } else {\n          reply = 'Digite *1* para confirmar ou *2* para cancelar.';\n        }\n      }\n\n      // ---- Estado desconhecido → menu ----\n      else {\n        st.state = 'MENU'; st.data = { unit_id: st.data.unit_id, last_msg_id: st.data.last_msg_id };\n        reply = menuText(unit, customer && customer.name);\n      }\n\n      // Se estava no MENU e chegou aqui sem reply (fallback), não muda estado\n    }\n\n    // --- Salvar contexto ---\n    await saveState(st, unit);\n\n    const sysPolish = 'Voce e a Luna, atendente virtual do pet shop ' + unit.name + '. Reescreva a mensagem do sistema abaixo de forma natural, calorosa e profissional, em portugues brasileiro. REGRAS: mantenha TODOS os numeros de opcoes, datas, horarios, precos e a formatacao *negrito* do WhatsApp exatamente iguais. Nao adicione informacoes novas. Use emojis com moderacao. Responda APENAS a mensagem final.';\n    const sysFallback = 'Voce e a Luna, atendente virtual simpatica do pet shop ' + unit.name + '. Responda a pergunta do cliente de forma breve, calorosa e profissional, em portugues brasileiro. Se a pergunta for sobre agendamento, precos ou horarios, convide a digitar *menu*. Se nao souber algo, sugira digitar *3* para falar com um atendente. Nao invente precos, horarios, servicos, funcionarios, disponibilidade, tempo de espera nem dados do cliente ou do pet. Nunca confirme agendamento sem confirmacao explicita do sistema. Se a informacao nao estiver disponivel, nao tente adivinhar.';\n    const systemPrompt = mode === 'fallback' ? sysFallback : sysPolish;\n    if (mode === 'fallback') {\n      results.push({ json: { phone, reply: null, mode, userText: text, systemPrompt, unitName: unit.name } });\n    } else {\n      results.push({ json: { phone, reply, mode, userText: text, systemPrompt, unitName: unit.name } });\n    }\n  } catch (e) {\n    results.push({ json: { phone, reply: '😅 Tive um probleminha técnico. Pode tentar de novo? Se persistir, digite *3* para falar com um atendente.', mode: 'fixed' } });\n  }\n}\n\nreturn results;\n\n// helper de preço por porte\nfunction priceFor(service, size) {\n  const rules = (service.prices || []).filter(r => r.active !== false);\n  const m = rules.find(r => r.criteria && r.criteria.size === size);\n  const r = m || rules[0];\n  return r ? parseFloat(r.price) : null;\n}\n"
+      },
+      "id": "n-state",
+      "name": "02 · Máquina de estados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -760,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.mode }}",
+              "rightValue": "none",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "n-if1",
+      "name": "03 · Tem resposta?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -540,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.mode }}",
+              "rightValue": "fixed",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "n-if2",
+      "name": "04 · Texto pronto?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://evolution_api:8080/message/sendText/{{ $env.EVOLUTION_INSTANCE }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.EVOLUTION_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"number\": \"{{ $json.phone }}\", \"text\": {{ JSON.stringify($json.reply) }}}",
+        "options": {}
+      },
+      "id": "n-send1",
+      "name": "05 · Enviar WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -80,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "prompt": "={{ $json.mode === 'fallback' ? ('Cliente: ' + $json.userText) : ('Mensagem do sistema:\\n' + $json.reply) }}",
+        "options": {
+          "systemMessage": "={{ $json.systemPrompt }}"
+        }
+      },
+      "id": "n-agent",
+      "name": "05 · IA Luna (Gemini)",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        -80,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {}
+      },
+      "id": "n-gemini",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://evolution_api:8080/message/sendText/{{ $env.EVOLUTION_INSTANCE }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.EVOLUTION_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"number\": \"{{ $('02 · Máquina de estados').item.json.phone }}\", \"text\": {{ JSON.stringify($json.output) }}}",
+        "options": {}
+      },
+      "id": "n-send2",
+      "name": "06 · Enviar WhatsApp (IA)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        180,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "n-schedule",
+      "name": "10 · A cada 1 minuto",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1200,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Nó 3 — (Schedule 1 min) Processa eventos do painel + envia lembretes\n// Tudo via HTTP; não gera saída para outros nós.\n\nconst helpers = this.helpers;\nconst SUPA = $env.SUPABASE_URL;\nconst SKEY = $env.SUPABASE_SERVICE_KEY;\nconst EVO = $env.EVOLUTION_URL;\nconst EKEY = $env.EVOLUTION_API_KEY;\nconst INST = $env.EVOLUTION_INSTANCE;\nconst H = { apikey: SKEY, Authorization: 'Bearer ' + SKEY, 'Content-Type': 'application/json' };\n\nasync function sendText(phone, text) {\n  try {\n    await helpers.httpRequest({\n      method: 'POST', url: EVO + '/message/sendText/' + encodeURIComponent(INST), json: true,\n      headers: { apikey: EKEY, 'Content-Type': 'application/json' },\n      body: { number: phone, text }\n    });\n    return true;\n  } catch (e) { console.log('sendText falhou: ' + (e.message || e)); return false; }\n}\n\nconst log = [];\n\n// ============ 1. EVENTOS (confirmação/recusa/cancelamento do painel) ============\ntry {\n  const events = await helpers.httpRequest({\n    method: 'GET', json: true, headers: H,\n    url: SUPA + '/rest/v1/system_events?processed=eq.false&order=created_at.asc&limit=20&select=id,event_type,payload'\n  });\n\n  for (const ev of events || []) {\n    const p = ev.payload || {};\n    const phone = p.customer && p.customer.phone;\n    let text = null;\n    if (ev.event_type === 'APPOINTMENT_CONFIRMED') {\n      text = '✅ *Agendamento confirmado!*\\n\\n' + (p.service || 'Serviço') + ' para *' + (p.pet || 'seu pet') + '*\\n📅 ' +\n        (p.date || '') + ' às ' + (p.time || '') + (p.value ? '\\n💰 ' + p.value : '') + '\\n\\nTe esperamos! 🐾';\n    } else if (ev.event_type === 'APPOINTMENT_REJECTED') {\n      text = '😕 Infelizmente não conseguimos confirmar seu agendamento de *' + (p.service || 'serviço') + '* para *' +\n        (p.pet || 'seu pet') + '* em ' + (p.date || '') + ' às ' + (p.time || '') +\n        '.\\n\\nDigite *menu* para escolher outro horário ou *3* para falar com um atendente.';\n    } else if (ev.event_type === 'APPOINTMENT_CANCELLED') {\n      text = '❌ Seu agendamento de *' + (p.service || 'serviço') + '* para *' + (p.pet || 'seu pet') + '* em ' +\n        (p.date || '') + ' às ' + (p.time || '') + ' foi cancelado.\\n\\nDigite *menu* se quiser reagendar.';\n    } else if (ev.event_type === 'APPOINTMENT_COMPLETED') {\n      text = '🐾 *Atendimento finalizado!*\\n\\n' + (p.service || 'Serviço') + ' de *' + (p.pet || 'seu pet') + '* foi concluído.\\n\\n' +\n        'Obrigado pela confiança! Esperamos vocês na próxima. 💙';\n    }\n    if (phone && text) {\n      const ok = await sendText(phone, text);\n      log.push(ev.event_type + ' → ' + phone + ': ' + (ok ? 'enviado' : 'FALHOU'));\n    }\n    await helpers.httpRequest({\n      method: 'PATCH', json: true, headers: H,\n      url: SUPA + '/rest/v1/system_events?id=eq.' + ev.id,\n      body: { processed: true, processed_at: new Date().toISOString() }\n    });\n  }\n} catch (e) { console.log('eventos erro: ' + (e.message || e)); }\n\n// ============ 2. LEMBRETES (1 dia antes e 2h antes) ============\ntry {\n  const now = Date.now();\n  const iso = t => new Date(t).toISOString();\n  const items = await helpers.httpRequest({\n    method: 'GET', json: true, headers: H,\n    url: SUPA + '/rest/v1/appointment_items?status=eq.CONFIRMED' +\n      '&start_time=gte.' + encodeURIComponent(iso(now)) +\n      '&start_time=lte.' + encodeURIComponent(iso(now + 26 * 3600000)) +\n      '&select=id,start_time,appointment_id,pet:pets(name),service:services(name),' +\n      'appointment:appointments!inner(id,status,reminder_sent,reminder_2h_sent,unit_timezone,customer:customers(name,phone))' +\n      '&appointment.status=eq.CONFIRMED'\n  });\n\n  const done = new Set();\n  for (const it of items || []) {\n    const appt = it.appointment;\n    if (!appt || done.has(appt.id)) continue;\n    done.add(appt.id);\n    const phone = appt.customer && appt.customer.phone;\n    if (!phone) continue;\n    const tz = appt.unit_timezone || 'America/Sao_Paulo';\n    const startMs = new Date(it.start_time).getTime();\n    const diffMin = (startMs - now) / 60000;\n    const quando = new Date(it.start_time).toLocaleDateString('pt-BR', { timeZone: tz, weekday: 'short', day: '2-digit', month: '2-digit' }) +\n      ' às ' + new Date(it.start_time).toLocaleTimeString('pt-BR', { timeZone: tz, hour: '2-digit', minute: '2-digit' });\n    const desc = ((it.service || {}).name || 'Serviço') + ' p/ *' + ((it.pet || {}).name || 'seu pet') + '*';\n\n    if (!appt.reminder_sent && diffMin > 20 * 60 && diffMin <= 26 * 60) {\n      const ok = await sendText(phone, '⏰ *Lembrete:* amanhã é dia de ' + desc + '!\\n📅 ' + quando + '\\n\\nQualquer imprevisto, é só avisar por aqui. 🐾');\n      if (ok) await helpers.httpRequest({ method: 'PATCH', json: true, headers: H, url: SUPA + '/rest/v1/appointments?id=eq.' + appt.id, body: { reminder_sent: true, reminder_sent_at: iso(now) } });\n      log.push('lembrete24h → ' + phone + ': ' + (ok ? 'enviado' : 'FALHOU'));\n    } else if (!appt.reminder_2h_sent && diffMin > 0 && diffMin <= 130) {\n      const ok = await sendText(phone, '🔔 *Daqui a pouco!* ' + desc + ' é hoje, ' + quando + '.\\n\\nAté já! 🐾');\n      if (ok) await helpers.httpRequest({ method: 'PATCH', json: true, headers: H, url: SUPA + '/rest/v1/appointments?id=eq.' + appt.id, body: { reminder_2h_sent: true } });\n      log.push('lembrete2h → ' + phone + ': ' + (ok ? 'enviado' : 'FALHOU'));\n    }\n  }\n} catch (e) { console.log('lembretes erro: ' + (e.message || e)); }\n\nreturn [{ json: { ok: true, actions: log } }];\n"
+      },
+      "id": "n-events",
+      "name": "11 · Eventos + Lembretes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -980,
+        720
+      ]
+    }
+  ],
+  "connections": {
+    "01 · Webhook Evolution": {
+      "main": [
+        [
+          {
+            "node": "02 · Extrair mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02 · Extrair mensagem": {
+      "main": [
+        [
+          {
+            "node": "02 · Máquina de estados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02 · Máquina de estados": {
+      "main": [
+        [
+          {
+            "node": "03 · Tem resposta?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03 · Tem resposta?": {
+      "main": [
+        [
+          {
+            "node": "04 · Texto pronto?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "04 · Texto pronto?": {
+      "main": [
+        [
+          {
+            "node": "05 · Enviar WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "05 · IA Luna (Gemini)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05 · IA Luna (Gemini)": {
+      "main": [
+        [
+          {
+            "node": "06 · Enviar WhatsApp (IA)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "05 · IA Luna (Gemini)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10 · A cada 1 minuto": {
+      "main": [
+        [
+          {
+            "node": "11 · Eventos + Lembretes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {}
+}
