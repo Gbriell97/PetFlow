@@ -67,6 +67,22 @@ async function resolveUnits(storePhone, instance) {
     } catch (e) { console.log('resolve por instância falhou: ' + (e.message || e)); }
   }
 
+  // 2b. Auto-registro: se a instância que recebeu a mensagem ainda não está
+  // gravada em nenhuma conexão, preenche instance_name automaticamente.
+  // TRAVA DE SEGURANÇA: só auto-registra quando TODAS as conexões ativas sem
+  // instance_name pertencem ao mesmo número (evita misturar conexões distintas).
+  if (unitIds.size === 0 && inst) {
+    try {
+      const pend = await req('GET', '/rest/v1/whatsapp_connections?active=eq.true&instance_name=is.null&select=id,phone,unit_id');
+      const phones = new Set((pend || []).map(r => r.phone));
+      if (pend && pend.length > 0 && phones.size === 1) {
+        await req('PATCH', '/rest/v1/whatsapp_connections?instance_name=is.null', { instance_name: inst });
+        for (const r of pend) if (r.unit_id) unitIds.add(r.unit_id);
+        console.log('instance_name auto-registrado como "' + inst + '" em ' + pend.length + ' conexão(ões)');
+      }
+    } catch (e) { console.log('auto-registro de instância falhou: ' + (e.message || e)); }
+  }
+
   // 3. telefone cadastrado direto na unidade
   if (unitIds.size === 0 && storeDigits) {
     const variants = [storeDigits];
@@ -188,6 +204,8 @@ for (const item of $input.all()) {
     // --- Comandos globais ---
     if (['menu', 'inicio', 'início', 'voltar', 'oi', 'olá', 'ola', 'bom dia', 'boa tarde', 'boa noite'].includes(lower)) {
       st.state = 'MENU'; st.data = { unit_id: st.data.unit_id, last_msg_id: st.data.last_msg_id }; st.handoff = false;
+      // Cliente já cadastrado recebe o menu determinístico; novo cliente cai no cadastro abaixo
+      if (customer) reply = menuText(unit, customer.name);
     } else if (lower === 'cancelar') {
       st.state = 'MENU'; st.data = { unit_id: st.data.unit_id, last_msg_id: st.data.last_msg_id };
       reply = 'Tudo bem, cancelei. 🙂\n\n' + menuText(unit, customer && customer.name);
@@ -310,33 +328,46 @@ for (const item of $input.all()) {
         else {
           const svc = list[n - 1];
           st.data.service_id = svc.id; st.data.service_name = svc.name; st.data.price = svc.price;
-          const days = [];
-          const now = new Date();
-          for (let i = 1; i <= 7; i++) {
-            const d = new Date(now.getTime() + i * 86400000);
-            const iso = d.toLocaleDateString('sv-SE', { timeZone: tz });
-            days.push({ iso, label: fmtDate(d.toISOString(), tz) });
+          // Consulta a disponibilidade dos próximos 7 dias de uma vez e
+          // exibe SOMENTE os dias que têm horário livre
+          const startIso = new Date(Date.now() + 86400000).toLocaleDateString('sv-SE', { timeZone: tz });
+          let all = [];
+          try {
+            const res = await helpers.httpRequest({
+              method: 'POST', url: SUPA + '/functions/v1/available-slots', json: true,
+              headers: { Authorization: 'Bearer ' + unitKey, 'Content-Type': 'application/json' },
+              body: { unit_id: unit.id, service_ids: [svc.id], pet_ids: [st.data.pet_id], date: startIso, max_days: 7 }
+            });
+            all = ((res && res.data && res.data.slots) || []).filter(s => s.available);
+          } catch (e) { console.log('available-slots falhou: ' + (e.message || e)); }
+          if (!all.length) {
+            st.state = 'MENU'; st.data = { unit_id: st.data.unit_id, last_msg_id: st.data.last_msg_id };
+            reply = '😕 Poxa, não encontrei horários livres para *' + svc.name + '* nos próximos 7 dias.\n\nDigite *menu* para voltar ou *3* para falar com um atendente.';
+          } else {
+            const byDay = {};
+            for (const s of all) {
+              const dIso = new Date(s.slot_start).toLocaleDateString('sv-SE', { timeZone: tz });
+              (byDay[dIso] = byDay[dIso] || []).push(s);
+            }
+            const days = Object.keys(byDay).sort().map(iso => ({ iso, label: fmtDate(iso + 'T12:00:00Z', tz) }));
+            st.data.days = days;
+            st.data.slotsByDay = byDay;
+            st.state = 'BOOK_DAY';
+            reply = 'Ótima escolha! ✨ *' + svc.name + '* para *' + st.data.pet_name + '*' + (svc.price ? ' — R$ ' + svc.price.toFixed(2) : '') +
+              '\n\nEscolha o dia (somente dias com horário livre):\n' +
+              days.map((d, i) => '\n' + (i + 1) + '️⃣ ' + d.label).join('');
           }
-          st.data.days = days;
-          st.state = 'BOOK_DAY';
-          reply = 'Ótima escolha! ✨ *' + svc.name + '* para *' + st.data.pet_name + '*' + (svc.price ? ' — R$ ' + svc.price.toFixed(2) : '') + '\n\nEscolha o dia:\n' +
-            days.map((d, i) => '\n' + (i + 1) + '️⃣ ' + d.label).join('');
         }
       }
 
-      // ---- Escolher dia → consultar horários ----
+      // ---- Escolher dia → listar horários daquele dia ----
       else if (S === 'BOOK_DAY') {
         const n = parseInt(lower, 10);
         const days = st.data.days || [];
         if (!n || n < 1 || n > days.length) reply = 'Digite o número do dia (1 a ' + days.length + ') ou *cancelar*.';
         else {
           const day = days[n - 1];
-          const res = await helpers.httpRequest({
-            method: 'POST', url: SUPA + '/functions/v1/available-slots', json: true,
-            headers: { Authorization: 'Bearer ' + unitKey, 'Content-Type': 'application/json' },
-            body: { unit_id: unit.id, service_ids: [st.data.service_id], pet_ids: [st.data.pet_id], date: day.iso }
-          });
-          const slots = ((res && res.data && res.data.slots) || []).filter(s => s.available);
+          const slots = ((st.data.slotsByDay || {})[day.iso] || []).filter(s => s.available);
           if (!slots.length) {
             reply = '😕 Sem horários livres em *' + day.label + '*. Escolha outro dia:\n' +
               days.map((d, i) => '\n' + (i + 1) + '️⃣ ' + d.label).join('');

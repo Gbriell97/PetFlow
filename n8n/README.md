@@ -44,7 +44,11 @@ n8n/
 4. **03 · Tem resposta?** → silêncio (`mode=none`) não envia nada.
 5. **04 · Texto pronto?** → `fixed` vai direto para **05 · Enviar WhatsApp**;
    `polish`/`fallback` passam pela **05 · IA Luna (Gemini)** que apenas humaniza,
-   e o texto final sai por **06 · Enviar WhatsApp (IA)**.
+   e o texto final sai por **06 · Enviar WhatsApp (IA)**. A IA tem uma
+   **Memória da conversa** (Window Buffer, janela de 10 mensagens, sessão por
+   telefone do cliente) — assim as respostas livres (fallback) mantêm o fio da
+   conversa. O prompt da IA vem sempre do campo `text` (`promptType: define`),
+   preenchido pela máquina de estados.
 
 **Gatilho 2 — Schedule (a cada 1 minuto)**
 - **11 · Eventos + Lembretes** — processa `system_events` não processados

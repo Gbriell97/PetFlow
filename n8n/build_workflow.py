@@ -74,14 +74,24 @@ nodes = [
     },
     {
         "parameters": {
-            "prompt": "={{ $json.mode === 'fallback' ? ('Cliente: ' + $json.userText) : ('Mensagem do sistema:\\n' + $json.reply) }}",
+            "promptType": "define",
+            "text": "={{ $json.mode === 'fallback' ? ('Cliente: ' + $json.userText) : ('Mensagem do sistema:\\n' + $json.reply) }}",
             "options": {"systemMessage": "={{ $json.systemPrompt }}"}
         },
         "id": "n-agent", "name": "05 · IA Luna (Gemini)",
         "type": "@n8n/n8n-nodes-langchain.agent", "typeVersion": 1.8, "position": [-80, 420]
     },
     {
-        "parameters": {"modelName": "models/gemini-2.0-flash", "options": {}},
+        "parameters": {
+            "sessionIdType": "customKey",
+            "sessionKey": "={{ $('02 · Máquina de estados').item.json.phone }}",
+            "contextWindowLength": 10
+        },
+        "id": "n-memory", "name": "Memória da conversa",
+        "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow", "typeVersion": 1.3, "position": [140, 620]
+    },
+    {
+        "parameters": {"modelName": "models/gemini-3.5-flash-lite", "options": {}},
         "id": "n-gemini", "name": "Google Gemini Chat Model",
         "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini", "typeVersion": 1, "position": [-80, 620]
     },
@@ -124,6 +134,7 @@ workflow = {
         ]},
         "05 · IA Luna (Gemini)": {"main": [[{"node": "06 · Enviar WhatsApp (IA)", "type": "main", "index": 0}]]},
         "Google Gemini Chat Model": {"ai_languageModel": [[{"node": "05 · IA Luna (Gemini)", "type": "ai_languageModel", "index": 0}]]},
+        "Memória da conversa": {"ai_memory": [[{"node": "05 · IA Luna (Gemini)", "type": "ai_memory", "index": 0}]]},
         "10 · A cada 1 minuto": {"main": [[{"node": "11 · Eventos + Lembretes", "type": "main", "index": 0}]]},
     },
     "settings": {"executionOrder": "v1"},
