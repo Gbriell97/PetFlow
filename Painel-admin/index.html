@@ -531,7 +531,7 @@ async function createUnit() {
     document.getElementById('credUnitName').textContent = data.data.unit.name;
     document.getElementById('credApiKey').textContent = data.data.unit.api_key;
     document.getElementById('credEmail').textContent = data.data.owner.email;
-    document.getElementById('credPassword').textContent = data.data.owner.temp_password;
+    document.getElementById('credPassword').textContent = data.data.owner.temp_password || 'login já existe — usar a senha atual';
     document.getElementById('credentialsModal').classList.remove('hidden');
     lucide.createIcons();
     toast('Loja criada com sucesso!', 'success');

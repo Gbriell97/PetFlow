@@ -143,31 +143,45 @@ serve(async (req) => {
     }
 
     // --- 5. CRIAR USUÁRIO NO AUTH (senha temporária) ---
-    const tempPassword = generateTempPassword();
+    // Se o email já existe (ex.: mesmo dono de várias lojas), REUTILIZA o
+    // usuário em vez de falhar — a loja é vinculada ao login existente.
+    let newUserId = "";
+    let tempPassword: string | null = generateTempPassword();
+    let reusedUser = false;
 
-    const { data: authUser, error: createUserErr } = await supabase.auth.admin.createUser({
-      email: owner_email,
-      password: tempPassword,
-      email_confirm: true,
-      user_metadata: { name: owner_name },
-    });
+    const { data: userList } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+    const existing = userList?.users?.find(
+      (u) => (u.email || "").toLowerCase() === owner_email.toLowerCase()
+    );
 
-    if (createUserErr || !authUser.user) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Erro ao criar usuário: " + createUserErr?.message }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (existing) {
+      newUserId = existing.id;
+      tempPassword = null;
+      reusedUser = true;
+    } else {
+      const { data: authUser, error: createUserErr } = await supabase.auth.admin.createUser({
+        email: owner_email,
+        password: tempPassword!,
+        email_confirm: true,
+        user_metadata: { name: owner_name },
+      });
+
+      if (createUserErr || !authUser.user) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Erro ao criar usuário: " + createUserErr?.message }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      newUserId = authUser.user.id;
     }
 
-    const newUserId = authUser.user.id;
-
-    // --- 6. CRIAR PERFIL EM public.users ---
-    await supabase.from("users").insert({
+    // --- 6. CRIAR PERFIL EM public.users (se ainda não existir) ---
+    await supabase.from("users").upsert({
       id: newUserId,
       name: owner_name,
       email: owner_email,
       phone: phone || null,
-    });
+    }, { onConflict: "id" });
 
     // --- 7. VINCULAR COMO UNIT_ADMIN ---
     await supabase.from("unit_users").insert({
@@ -233,13 +247,20 @@ serve(async (req) => {
             name: owner_name,
             email: owner_email,
             temp_password: tempPassword,
+            reused: reusedUser,
           },
-          instructions: [
-            "1. Acesse o painel da loja no link que você enviar",
-            "2. Login: email + senha temporária acima",
-            "3. A API Key (para n8n/WhatsApp) já está configurada",
-            "4. Peça para o dono trocar a senha no primeiro acesso",
-          ],
+          instructions: reusedUser
+            ? [
+                "1. Esta loja foi vinculada a um login que já existe (" + owner_email + ")",
+                "2. O dono acessa o painel com o email e a senha que já usa",
+                "3. A API Key (para n8n/WhatsApp) já está configurada",
+              ]
+            : [
+                "1. Acesse o painel da loja no link que você enviar",
+                "2. Login: email + senha temporária acima",
+                "3. A API Key (para n8n/WhatsApp) já está configurada",
+                "4. Peça para o dono trocar a senha no primeiro acesso",
+              ],
         },
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
