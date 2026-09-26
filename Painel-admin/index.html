@@ -434,8 +434,33 @@ function showDashboard() {
 
 // ===================== LOAD UNITS =====================
 async function loadUnits() {
-  if (!state.user?.units) return;
-  state.units = state.user.units;
+  // Busca SEMPRE do servidor — localStorage fica só como fallback/offline.
+  // Assim criar/excluir loja reflete na página mesmo após F5.
+  try {
+    const res = await fetch(`${state.apiUrl}/super-admin-list-units`, {
+      headers: { 'Authorization': `Bearer ${state.token}` }
+    });
+    if (res.status === 401) {
+      toast('Sessão expirada. Faça login novamente.', 'error');
+      setTimeout(() => logout(), 1500);
+      return;
+    }
+    const data = await res.json();
+    if (data.success) {
+      state.units = data.data || [];
+      // mantém o cache do usuário em sincronia
+      if (state.user) {
+        state.user.units = state.units;
+        localStorage.setItem('pf_admin_user', JSON.stringify(state.user));
+      }
+    } else {
+      throw new Error(data.error || 'erro');
+    }
+  } catch (e) {
+    // fallback: dados do login (podem estar desatualizados)
+    if (!state.user?.units) return;
+    state.units = state.user.units;
+  }
   renderUnits();
   updateStats();
 }
