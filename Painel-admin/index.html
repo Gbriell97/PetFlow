@@ -1178,19 +1178,33 @@ async function toggleUserBlock(userId, isActive) {
 // ===================== DELETE UNIT =====================
 async function deleteCurrentUnit() {
   if (!state.currentUnit) return;
-  if (!confirm(`Tem certeza que deseja excluir a loja "${state.currentUnit.name}"?
+  if (!confirm(`Excluir a loja "${state.currentUnit.name}"?
 
-Esta ação não pode ser desfeita. Todos os dados (clientes, pets, agendamentos) serão perdidos.`)) return;
+A loja será desativada e sumirá dos painéis. Clientes, pets e agendamentos ficam marcados como removidos (podem ser recuperados manualmente no banco).`)) return;
 
   try {
-    // Usar a API REST do Supabase diretamente para deletar a unit (cascade nas relações)
-    const sbUrl = state.apiUrl.replace('/functions/v1', '');
-    const sbServiceKey = 'SUA_SERVICE_ROLE_KEY'; // Não temos acesso aqui, então vamos usar a Edge Function
-
-    toast('Função de exclusão em desenvolvimento. Use o SQL Editor do Supabase para excluir manualmente se necessário.', 'warning');
-    closeManageUnitModal();
+    const res = await fetch(`${state.apiUrl}/super-admin-unit-delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.token}` },
+      body: JSON.stringify({ unit_id: state.currentUnit.id })
+    });
+    if (res.status === 401) {
+      toast('Sessão expirada. Faça login novamente.', 'error');
+      setTimeout(() => logout(), 1500);
+      return;
+    }
+    const data = await res.json();
+    if (data.success) {
+      toast('Loja excluída com sucesso', 'success');
+      state.units = state.units.filter(u => u.id !== state.currentUnit.id);
+      closeManageUnitModal();
+      renderUnits();
+      updateStats();
+    } else {
+      toast(data.error || 'Erro ao excluir loja', 'error');
+    }
   } catch (err) {
-    toast('Erro ao remover loja', 'error');
+    toast('Erro de conexão', 'error');
   }
 }
 
