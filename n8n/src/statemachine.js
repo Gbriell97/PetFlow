@@ -37,7 +37,12 @@ function fmtTime(iso, tz) {
 }
 function menuText(unit, name) {
   return '🐾 *' + unit.name + '*\n\n' + (name ? 'Olá, *' + name.split(' ')[0] + '*! ' : 'Olá! ') +
-    'O que você deseja?\n\n1️⃣ Agendar serviço\n2️⃣ Meus agendamentos\n3️⃣ Falar com atendente\n\nDigite o número da opção.';
+    'O que você deseja?\n\n1️⃣ Agendar serviço\n2️⃣ Meus agendamentos\n3️⃣ Falar com atendente\n4️⃣ Cadastrar pet\n\nDigite o número da opção.';
+}
+
+// hora local (0-23) de um slot ISO no fuso da loja
+function localHour(iso, tz) {
+  return parseInt(new Date(iso).toLocaleTimeString('sv-SE', { timeZone: tz, hour: '2-digit' }), 10);
 }
 
 // ============ RESOLUÇÃO DE LOJAS (multi-loja N:N) ============
@@ -253,9 +258,23 @@ for (const item of $input.all()) {
         const size = lower === '1' ? 'SMALL' : lower === '2' ? 'MEDIUM' : lower === '3' ? 'LARGE' : null;
         if (!size) reply = 'Digite *1* (Pequeno), *2* (Médio) ou *3* (Grande).';
         else {
-          await req('POST', '/rest/v1/pets', { unit_id: unit.id, customer_id: customer.id, name: st.data.pet_name, species: st.data.species, size, active: true }, { Prefer: 'return=minimal' });
+          const petName = st.data.pet_name;
+          await req('POST', '/rest/v1/pets', { unit_id: unit.id, customer_id: customer.id, name: petName, species: st.data.species, size, active: true }, { Prefer: 'return=minimal' });
+          st.state = 'ASK_ANOTHER_PET'; st.data = { unit_id: st.data.unit_id, last_msg_id: st.data.last_msg_id };
+          reply = '*' + petName + '* cadastrado(a) com sucesso! 🎉\n\nQuer cadastrar outro pet?\n\n1️⃣ Sim\n2️⃣ Não';
+        }
+      }
+
+      // ---- Cadastrar outro pet? ----
+      else if (S === 'ASK_ANOTHER_PET') {
+        if (lower === '1') {
+          st.state = 'ASK_PET_NAME'; st.data = { unit_id: st.data.unit_id, last_msg_id: st.data.last_msg_id };
+          reply = 'Que bom! 🐾\n\nQual o *nome* do próximo pet?';
+        } else if (lower === '2') {
           st.state = 'MENU'; st.data = { unit_id: st.data.unit_id, last_msg_id: st.data.last_msg_id };
-          reply = 'Cadastro concluído! 🎉\n\n' + menuText(unit, customer.name);
+          reply = 'Combinado! 👍\n\n' + menuText(unit, customer.name);
+        } else {
+          reply = 'Digite *1* para cadastrar outro pet ou *2* para voltar ao menu.';
         }
       }
 
@@ -297,6 +316,9 @@ for (const item of $input.all()) {
         } else if (lower === '3') {
           st.handoff = true;
           reply = 'Certo! Já chamei um atendente humano. 👤\n\nEnquanto isso, o robozinho fica quietinho. Quando quiser voltar ao menu, digite *menu*.';
+        } else if (lower === '4') {
+          st.state = 'ASK_PET_NAME'; st.data = { unit_id: st.data.unit_id, last_msg_id: st.data.last_msg_id };
+          reply = 'Vamos cadastrar um novo pet! 🐾\n\nQual o *nome* dele(a)?';
         } else if (/^\d+$/.test(lower)) {
           reply = 'Opção inválida. 🤔\n\n' + menuText(unit, customer.name);
         } else {
@@ -372,14 +394,45 @@ for (const item of $input.all()) {
             reply = '😕 Sem horários livres em *' + day.label + '*. Escolha outro dia:\n' +
               days.map((d, i) => '\n' + (i + 1) + '️⃣ ' + d.label).join('');
           } else {
-            const shown = slots.slice(0, 10);
-            st.data.slots = shown.map(s => ({ start: s.slot_start, employee_id: s.suggested_employee_id, price: s.total_price, duration: s.total_duration_minutes }));
             st.data.day_label = day.label;
-            st.state = 'BOOK_TIME';
-            reply = '⏰ Horários disponíveis em *' + day.label + '*:\n' +
-              shown.map((s, i) => '\n' + (i + 1) + '️⃣ ' + fmtTime(s.slot_start, tz)).join('') +
-              (slots.length > 10 ? '\n\n(mostrando os 10 primeiros)' : '');
+            st.data.day_slots = slots.map(s => ({
+              start: s.slot_start, employee_id: s.suggested_employee_id,
+              price: s.total_price, duration: s.total_duration_minutes,
+              hour: localHour(s.slot_start, tz)
+            }));
+            const hasMorning = st.data.day_slots.some(s => s.hour < 12);
+            const hasAfternoon = st.data.day_slots.some(s => s.hour >= 12);
+            if (hasMorning && hasAfternoon) {
+              st.state = 'BOOK_PERIOD';
+              reply = 'Perfeito! Em *' + day.label + '* temos horários nos dois períodos. 😊\n\nVocê prefere:\n\n1️⃣ Manhã\n2️⃣ Tarde';
+            } else {
+              const pick = st.data.day_slots;
+              const shown = pick.slice(0, 10);
+              st.data.slots = shown;
+              st.state = 'BOOK_TIME';
+              reply = '⏰ Horários disponíveis em *' + day.label + '*:\n' +
+                shown.map((s, i) => '\n' + (i + 1) + '️⃣ ' + fmtTime(s.start, tz)).join('') +
+                (pick.length > 10 ? '\n\n(mostrando os 10 primeiros)' : '');
+            }
           }
+        }
+      }
+
+      // ---- Escolher período (manhã/tarde) ----
+      else if (S === 'BOOK_PERIOD') {
+        const all = st.data.day_slots || [];
+        let pick = null, label = '';
+        if (lower === '1') { pick = all.filter(s => s.hour < 12); label = 'manhã'; }
+        else if (lower === '2') { pick = all.filter(s => s.hour >= 12); label = 'tarde'; }
+        if (!pick) reply = 'Digite *1* para Manhã ou *2* para Tarde.';
+        else if (!pick.length) reply = '😕 Sem horários de ' + label + ' em *' + st.data.day_label + '*. Digite *1* (Manhã) ou *2* (Tarde).';
+        else {
+          const shown = pick.slice(0, 10);
+          st.data.slots = shown;
+          st.state = 'BOOK_TIME';
+          reply = '⏰ Horários de *' + label + '* em *' + st.data.day_label + '*:\n' +
+            shown.map((s, i) => '\n' + (i + 1) + '️⃣ ' + fmtTime(s.start, tz)).join('') +
+            (pick.length > 10 ? '\n\n(mostrando os 10 primeiros)' : '');
         }
       }
 

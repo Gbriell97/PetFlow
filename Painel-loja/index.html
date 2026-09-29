@@ -249,6 +249,84 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
       .confirm-dialog { margin: 10px; }
     }
 
+    /* === RESPONSIVO MOBILE === */
+    /* Altura dinâmica para browsers mobile (barra de endereço) */
+    .app-layout { height: 100vh; height: 100dvh; }
+    /* Impede scroll horizontal na página (tabelas rolam dentro do próprio card) */
+    body { overflow-x: hidden; }
+    /* Quebra de textos longos em qualquer lugar */
+    .card, .data-table td, .stat-value, .stat-change, .header-title, .card-title, .kpi-value, .detail-value {
+      overflow-wrap: break-word;
+      word-break: break-word;
+    }
+    .header-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+
+    /* Grids do dashboard em telas menores */
+    @media(max-width:1024px) {
+      .dash-grid { grid-template-columns: 1fr !important; }
+    }
+
+    /* Tablets */
+    @media(max-width:900px) {
+      .content-area { padding: 16px; }
+    }
+
+    /* Smartphones */
+    @media(max-width:768px) {
+      /* Header: esconde pills secundários, mantém loja e ações essenciais */
+      #apiStatusBadge { display: none !important; }
+      .header-actions > div:nth-of-type(3) { display: none !important; } /* pill do usuário */
+      .top-header { padding: 0 12px; gap: 8px; }
+      .header-title { font-size: 15px; }
+      /* Nome da loja trunca com reticências em vez de quebrar linhas */
+      #unitName { display: inline-block; max-width: 110px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
+      .header-actions > div { flex-shrink: 0; }
+      /* Filtros e buscas ocupam a largura toda, empilhando */
+      .content-area .card input.form-input,
+      .content-area .card select.form-input,
+      .content-area .card select.form-select { width: 100% !important; }
+      .content-area .card > div > div[style*="position:relative"] { flex: 1 1 100%; max-width: 100%; }
+      /* Cards de estatística: 2 colunas em telas médias, 1 em telas muito pequenas */
+      .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+      .stat-card { padding: 16px; }
+      .stat-value { font-size: 22px; }
+      /* Cards de listagem em 1 coluna */
+      #customersGrid, #servicesGrid, #employeesGrid { grid-template-columns: 1fr !important; }
+      #petsGrid { grid-template-columns: 1fr !important; }
+      /* Tabelas: apenas a de agendamentos precisa de rolagem horizontal */
+      #appointmentsTable { min-width: 640px; }
+      div[style*="overflow-x:auto"] { -webkit-overflow-scrolling: touch; }
+      /* Modal com respiro menor */
+      .modal-overlay { padding: 12px; }
+      .modal-header { padding: 16px 18px; }
+      .modal-body { padding: 18px; }
+      .modal-footer { padding: 14px 18px; }
+      /* Toast não estoura a tela */
+      .toast { min-width: 0; max-width: calc(100vw - 32px); }
+      .toast-container { right: 12px; left: 12px; align-items: stretch; }
+      /* Botões de ação com área de toque confortável */
+      .btn { min-height: 40px; }
+      /* Fonte 16px nos inputs evita zoom automático do iOS */
+      .form-input, .form-select, .form-textarea { font-size: 16px; }
+      /* Sidebar ocupa quase toda a tela em aparelhos pequenos */
+      .sidebar { width: min(280px, 85vw); }
+      .sidebar.collapsed { width: min(280px, 85vw); }
+      .login-card { margin: 12px; padding: 24px; }
+    }
+
+    @media(max-width:480px) {
+      .stats-grid { grid-template-columns: 1fr; }
+      .kpi-row { grid-template-columns: repeat(2, 1fr); }
+      .chart-container { height: 180px; }
+      .btn { white-space: normal; }
+      .period-btn { padding: 6px 10px; font-size: 12px; }
+      .card { padding: 16px; }
+      .chart-card { padding: 16px; }
+      .content-area { padding: 12px; }
+      .confirm-dialog-buttons { flex-direction: column; }
+      .confirm-dialog-buttons .btn { width: 100%; }
+    }
+
     </style>
 </head>
 <body>
@@ -394,7 +472,7 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
   </div>
 
   <!-- Charts Row -->
-  <div style="display:grid;grid-template-columns:2fr 1fr;gap:24px;margin-bottom:24px;">
+  <div class="dash-grid" style="display:grid;grid-template-columns:2fr 1fr;gap:24px;margin-bottom:24px;">
     <div class="card chart-card">
       <div class="card-header"><div><div class="card-title">Agendamentos por Dia</div><div class="card-subtitle">Volume de atendimentos no período</div></div></div>
       <div class="chart-container"><canvas id="chartAppointmentsByDay"></canvas></div>
@@ -406,7 +484,7 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
   </div>
 
   <!-- Second Charts Row -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;">
+  <div class="dash-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;">
     <div class="card chart-card">
       <div class="card-header"><div><div class="card-title">Faturamento por Dia</div><div class="card-subtitle">Em Reais (R$)</div></div></div>
       <div class="chart-container"><canvas id="chartRevenueByDay"></canvas></div>
@@ -418,7 +496,7 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
   </div>
 
   <!-- KPIs + Timeline Row -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+  <div class="dash-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
     <div class="card">
       <div class="card-header"><div><div class="card-title">Métricas do Período</div><div class="card-subtitle">Indicadores de performance</div></div></div>
       <div class="kpi-row">
