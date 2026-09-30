@@ -293,8 +293,19 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
       /* Cards de listagem em 1 coluna */
       #customersGrid, #servicesGrid, #employeesGrid { grid-template-columns: 1fr !important; }
       #petsGrid { grid-template-columns: 1fr !important; }
-      /* Tabelas: apenas a de agendamentos precisa de rolagem horizontal */
-      #appointmentsTable { min-width: 640px; }
+      /* Tabelas viram listas de cards no mobile */
+      #appointmentsTable, #scheduleTable, #blocksTable { min-width: 0; }
+      #appointmentsTable thead, #scheduleTable thead, #blocksTable thead { display: none; }
+      #appointmentsTable tbody, #appointmentsTable tr, #appointmentsTable td,
+      #scheduleTable tbody, #scheduleTable tr, #scheduleTable td,
+      #blocksTable tbody, #blocksTable tr, #blocksTable td { display: block; width: 100%; }
+      #appointmentsTable tr, #scheduleTable tr, #blocksTable tr { border-bottom: 1px solid var(--border); padding: 12px 16px; }
+      #appointmentsTable tr:last-child, #scheduleTable tr:last-child, #blocksTable tr:last-child { border-bottom: none; }
+      #appointmentsTable td, #scheduleTable td, #blocksTable td { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 5px 0; border-bottom: none; text-align: right; }
+      #appointmentsTable td::before, #scheduleTable td::before, #blocksTable td::before { content: attr(data-label); font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; flex-shrink: 0; }
+      #appointmentsTable td.td-actions::before, #scheduleTable td.td-actions::before, #blocksTable td.td-actions::before { content: none; }
+      #appointmentsTable td.td-actions, #scheduleTable td.td-actions, #blocksTable td.td-actions { justify-content: flex-end; }
+      .pagination { flex-wrap: wrap; }
       div[style*="overflow-x:auto"] { -webkit-overflow-scrolling: touch; }
       /* Modal com respiro menor */
       .modal-overlay { padding: 12px; }
@@ -2188,23 +2199,23 @@ function renderAppointmentsTable() {
 
   tbody.innerHTML = pageItems.map(a => `
     <tr class="table-row-clickable" onclick="openApptDetailModal('${a.id}')">
-      <td><span style="font-size:13px;">${formatDate(a.date)}</span></td>
-      <td><strong>${a.time?.slice(0,5) || '--:--'}</strong></td>
-      <td>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <div style="width:32px;height:32px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;color:white;font-size:12px;font-weight:700;">${(a.customer_name || 'C').charAt(0)}</div>
-          <div>
+      <td data-label="Data"><span style="font-size:13px;">${formatDate(a.date)}</span></td>
+      <td data-label="Horário"><strong>${a.time?.slice(0,5) || '--:--'}</strong></td>
+      <td data-label="Cliente">
+        <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+          <div style="width:32px;height:32px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;color:white;font-size:12px;font-weight:700;flex-shrink:0;">${(a.customer_name || 'C').charAt(0)}</div>
+          <div style="min-width:0;">
             <div style="font-weight:500;">${a.customer_name || '—'}</div>
             <div style="font-size:12px;color:var(--text-muted);">${a.customer_phone || ''}</div>
           </div>
         </div>
       </td>
-      <td>${a.pet_name || '—'} <span style="font-size:12px;color:var(--text-muted);">(${a.pet_breed || a.pet_species || 'Pet'})</span></td>
-      <td>${a.service_name || '—'}</td>
-      <td>${a.employee_name || '—'}</td>
-      <td><span style="font-weight:600;">R$ ${(a.price || 0).toFixed(2).replace('.', ',')}</span></td>
-      <td><span class="badge badge-${statusColor(a.status)}">${formatStatus(a.status)}</span></td>
-      <td style="text-align:right;" onclick="event.stopPropagation();">
+      <td data-label="Pet">${a.pet_name || '—'} <span style="font-size:12px;color:var(--text-muted);">(${a.pet_breed || a.pet_species || 'Pet'})</span></td>
+      <td data-label="Serviço">${a.service_name || '—'}</td>
+      <td data-label="Profissional">${a.employee_name || '—'}</td>
+      <td data-label="Preço"><span style="font-weight:600;">R$ ${(a.price || 0).toFixed(2).replace('.', ',')}</span></td>
+      <td data-label="Status"><span class="badge badge-${statusColor(a.status)}">${formatStatus(a.status)}</span></td>
+      <td class="td-actions" style="text-align:right;" onclick="event.stopPropagation();">
         <div style="display:flex;gap:6px;justify-content:flex-end;">
           ${a.status === 'PENDING' ? `<button class="btn btn-ghost btn-sm" style="padding:4px 8px;" onclick="confirmUpdateApptStatus('${a.id}', 'CONFIRMED', 'Confirmar agendamento de ${a.customer_name}?')" title="Confirmar"><i data-lucide="check" style="width:14px;height:14px;color:var(--success);"></i></button>` : ''}
           ${a.status === 'CONFIRMED' ? `<button class="btn btn-ghost btn-sm" style="padding:4px 8px;" onclick="confirmUpdateApptStatus('${a.id}', 'CHECKED_IN', 'Dar check-in para ${a.customer_name}?')" title="Check-in"><i data-lucide="log-in" style="width:14px;height:14px;color:var(--primary);"></i></button>` : ''}
@@ -2645,16 +2656,16 @@ function renderScheduleTable() {
     const isOpen = h.is_open !== false;
     return `
       <tr data-day="${idx}">
-        <td><strong>${dayName}</strong></td>
-        <td style="text-align:center;">
+        <td data-label="Dia"><strong>${dayName}</strong></td>
+        <td data-label="Aberto?" style="text-align:center;">
           <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;">
             <input type="checkbox" class="schedule-toggle" data-day="${idx}" ${isOpen ? 'checked' : ''} style="accent-color:var(--primary);width:18px;height:18px;cursor:pointer;">
             <span style="font-size:13px;color:var(--text-secondary);">${isOpen ? 'Sim' : 'Não'}</span>
           </label>
         </td>
-        <td><input type="time" class="form-input schedule-open" data-day="${idx}" value="${h.open_time || '08:00'}" ${!isOpen ? 'disabled' : ''} style="width:120px;"></td>
-        <td><input type="time" class="form-input schedule-close" data-day="${idx}" value="${h.close_time || '18:00'}" ${!isOpen ? 'disabled' : ''} style="width:120px;"></td>
-        <td style="text-align:center;">
+        <td data-label="Abertura"><input type="time" class="form-input schedule-open" data-day="${idx}" value="${h.open_time || '08:00'}" ${!isOpen ? 'disabled' : ''} style="width:120px;"></td>
+        <td data-label="Fechamento"><input type="time" class="form-input schedule-close" data-day="${idx}" value="${h.close_time || '18:00'}" ${!isOpen ? 'disabled' : ''} style="width:120px;"></td>
+        <td class="td-actions" style="text-align:center;">
           <button class="btn btn-ghost btn-sm schedule-copy" data-day="${idx}" title="Copiar para os dias seguintes" style="padding:6px;"><i data-lucide="copy" style="width:14px;height:14px;color:var(--text-secondary);"></i></button>
         </td>
       </tr>
@@ -2782,10 +2793,10 @@ function renderBlocks(blocks) {
     const periodText = isSingleDay ? formatDate(b.start_date) : `${formatDate(b.start_date)} — ${formatDate(b.end_date)}`;
     return `
       <tr>
-        <td><strong>${periodText}</strong></td>
-        <td>${b.reason || '—'}</td>
-        <td><span class="badge badge-${typeColors[b.type] || 'secondary'}" style="font-size:11px;">${typeLabels[b.type] || b.type}</span></td>
-        <td style="text-align:right;">
+        <td data-label="Período"><strong>${periodText}</strong></td>
+        <td data-label="Motivo">${b.reason || '—'}</td>
+        <td data-label="Tipo"><span class="badge badge-${typeColors[b.type] || 'secondary'}" style="font-size:11px;">${typeLabels[b.type] || b.type}</span></td>
+        <td class="td-actions" style="text-align:right;">
           <div style="display:flex;gap:6px;justify-content:flex-end;">
             <button class="btn btn-ghost btn-sm" style="padding:4px 8px;" onclick="openBlockFormModal('${b.id}')" title="Editar"><i data-lucide="pencil" style="width:14px;height:14px;color:var(--text-secondary);"></i></button>
             <button class="btn btn-ghost btn-sm" style="padding:4px 8px;" onclick="confirmDeleteBlock('${b.id}', '${(b.reason || '').replace(/'/g, "\'")}')" title="Excluir"><i data-lucide="trash-2" style="width:14px;height:14px;color:var(--error);"></i></button>
